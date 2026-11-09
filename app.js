@@ -72,7 +72,8 @@ function tableHTML(t){if(!t)return'';const fs=Math.max(10,Math.min(20,Math.round
   for(let i=0;i<t.r;i++){o+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.h===i+1?'tb ':'')+(t.th.v===j+1?'tr':'');o+=`<td class="${cl}">${esc(t.cells[i][j])}</td>`}o+='</tr>'}return o+'</table>'}
 const speechOf=(text,t)=>text||tblText(t,'、');
 function cleanWord(w){if(!w||typeof w!=='object')w={};return{id:safeId(w.id,'w'),t:String(w.t||''),m:String(w.m||''),n:String(w.n||''),mas:!!w.mas,c:+w.c||0,w:+w.w||0,star:!!w.star,lt:+w.lt||0,ti:cleanRef(w.ti),mi:cleanRef(w.mi),tt:cleanTable(w.tt),mt:cleanTable(w.mt)}}
-function cleanDeck(d){if(!d||typeof d!=='object')return null;return{id:safeId(d.id,'d'),name:String(d.name||'単語帳'),color:fixCol(d.color),createdAt:+d.createdAt||Date.now(),updatedAt:+d.updatedAt||0,words:Array.isArray(d.words)?d.words.map(cleanWord):[],folder:typeof d.folder==='string'&&SAFE_ID.test(d.folder)?d.folder:null}}
+function cleanDeck(d){if(!d||typeof d!=='object')return null;return{id:safeId(d.id,'d'),name:String(d.name||'単語帳'),color:fixCol(d.color),createdAt:+d.createdAt||Date.now(),updatedAt:+d.updatedAt||0,words:Array.isArray(d.words)?d.words.map(cleanWord):[],ord:typeof d.ord==='number'&&isFinite(d.ord)?d.ord:(+d.createdAt||Date.now()),folder:typeof d.folder==='string'&&SAFE_ID.test(d.folder)?d.folder:null}}
+const byOrd=(a,b)=>(a.ord-b.ord)||(a.createdAt-b.createdAt);
 function cleanFolder(f){if(!f||typeof f!=='object'||!f.id)return null;return{id:safeId(f.id,'f'),name:String(f.name||'ファイル'),color:fixCol(f.color),createdAt:+f.createdAt||Date.now()}}
 const NATIVE=!!(window.Capacitor&&typeof Capacitor.isNativePlatform==='function'&&Capacitor.isNativePlatform());
 const P=NATIVE&&Capacitor.Plugins?Capacitor.Plugins:{};
@@ -86,7 +87,7 @@ const idbDel=(s,k)=>idbOp(s,'readwrite',st=>st.delete(k));
 const idbKeys=s=>idbOp(s,'readonly',st=>st.getAllKeys());
 const photoURL=Object.create(null);
 let S={decks:[],synced:[],folders:[],foldersAt:0};
-function loadState(s){if(s&&Array.isArray(s.decks)){S.decks=s.decks.map(cleanDeck).filter(Boolean)}if(s&&Array.isArray(s.folders)){S.folders=s.folders.map(cleanFolder).filter(Boolean);S.foldersAt=+s.foldersAt||0}}
+function loadState(s){if(s&&Array.isArray(s.decks)){S.decks=s.decks.map(cleanDeck).filter(Boolean).sort(byOrd)}if(s&&Array.isArray(s.folders)){S.folders=s.folders.map(cleanFolder).filter(Boolean);S.foldersAt=+s.foldersAt||0}}
 const folderById=id=>S.folders.find(f=>f.id===id);
 const deckFolder=d=>d&&d.folder&&folderById(d.folder)?d.folder:null;
 const decksIn=fid=>S.decks.filter(d=>deckFolder(d)===fid);
@@ -146,7 +147,7 @@ async function initCloud(){
     const rIds=new Set(remote.map(d=>d.id));const up=[];const merged=[];
     for(const r of remote){const l=deckById(r.id);if(l&&l.updatedAt>r.updatedAt){merged.push(l);up.push(l.id)}else merged.push(r)}
     for(const l of S.decks){if(rIds.has(l.id))continue;if(S.synced.includes(l.id))continue;merged.push(l);up.push(l.id)}
-    merged.sort((a,b)=>a.createdAt-b.createdAt);
+    merged.sort(byOrd);
     const fdoc=snap.docs.find(x=>x.exists&&x.id==='folders');let upF=false;
     if(fdoc){const fd=fdoc.data()||{};if((+fd.updatedAt||0)>=(S.foldersAt||0)){S.folders=(Array.isArray(fd.items)?fd.items:[]).map(x=>cleanFolder(JSON.parse(JSON.stringify(x)))).filter(Boolean);S.foldersAt=+fd.updatedAt||0}else upF=true}else if(S.folders.length)upF=true;
     S.decks=merged;S.synced=remote.map(d=>d.id);saveLocal();if(upF)setTimeout(()=>flush('folders'),0);
@@ -183,8 +184,8 @@ function renderHome(){
 function homeLists(){
   if(!S.decks.length&&!S.folders.length)return emptyHome();
   const loose=S.decks.filter(d=>!deckFolder(d));let out='';
-  if(S.folders.length)out+=`<h2>ファイル</h2><div class="decks">${S.folders.map(folderCard).join('')}</div>`;
-  if(loose.length)out+=`<h2 class="${S.folders.length?'sec2':''}">単語帳</h2><div class="decks">${loose.map(deckCard).join('')}</div>`;
+  if(S.folders.length)out+=`<h2>ファイル${S.folders.length>1?'<small>長押しで並び替え</small>':''}</h2><div class="decks" data-sort="folders">${S.folders.map(folderCard).join('')}</div>`;
+  if(loose.length)out+=`<h2 class="${S.folders.length?'sec2':''}">単語帳${loose.length>1?'<small>長押しで並び替え</small>':''}</h2><div class="decks" data-sort="decks">${loose.map(deckCard).join('')}</div>`;
   return out}
 function agg(ds){const t=ds.reduce((a,d)=>a+d.words.length,0),m=ds.reduce((a,d)=>a+d.words.filter(w=>w.mas).length,0);return{t,m,p:t?Math.round(m/t*100):0}}
 function folderCard(f){const ds=decksIn(f.id),s=agg(ds);return`<div class="deck folder" role="button" tabindex="0" data-act="openFolder" data-id="${f.id}" style="--c:${f.color}"><span class="ftile">${ICON.folder}</span><span class="dmain"><b>${esc(f.name)}</b><small>単語帳 ${ds.length}冊 ・ ${s.t}語 ・ 覚えた ${s.p}%</small><span class="bar"><i style="width:${s.p}%"></i></span></span><button class="icon more" data-act="folderMenu" data-id="${f.id}" aria-label="ファイルのメニュー">${ICON.more}</button></div>`}
@@ -195,7 +196,7 @@ function renderFolder(){
   return`<header class="top"><button class="icon" data-act="home" aria-label="戻る">${ICON.back}</button><h1 class="ttl">${esc(f.name)}</h1><button class="icon" data-act="folderMenu" data-id="${f.id}" aria-label="メニュー">${ICON.more}</button></header>
   <main class="pad" style="--c:${f.color}">
     <section class="prog"><span class="ftile">${ICON.folder}</span><div class="ptxt"><b>単語帳 ${ds.length}冊 ・ ${s.t}語</b><span>覚えた ${s.m}語（${s.p}%）</span></div><div class="ringwrap">${ring(s.p,56,6,f.color)}<b style="font-size:13px">${s.p}<small>%</small></b></div></section>
-    ${ds.length?`<div class="decks">${ds.map(deckCard).join('')}</div><button class="btn ghost wide" style="margin-top:14px" data-act="addToFolder" data-id="${f.id}">${ICON.move}ほかの単語帳をここに移動</button>`
+    ${ds.length?`${ds.length>1?'<h2 style="margin-top:4px">単語帳<small>長押しで並び替え</small></h2>':''}<div class="decks" data-sort="decks">${ds.map(deckCard).join('')}</div><button class="btn ghost wide" style="margin-top:14px" data-act="addToFolder" data-id="${f.id}">${ICON.move}ほかの単語帳をここに移動</button>`
       :`<div class="empty"><div class="ftile lg">${ICON.folder}</div><h3>まだ単語帳がありません</h3><p>新しく作るか、ほかの単語帳を<br>このファイルに移動しましょう。</p><div class="row"><button class="btn primary" data-act="newDeckHere">${ICON.plus}単語帳を作成</button><button class="btn ghost" data-act="addToFolder" data-id="${f.id}">${ICON.move}単語帳を移動してくる</button></div></div>`}
   </main>
   <button class="fab" data-act="newDeckHere" aria-label="このファイルに単語帳を作成">${ICON.plus}</button>`}
@@ -700,7 +701,7 @@ document.addEventListener('keydown',e=>{
 
 /* ---------- drag to reorder ---------- */
 let drag=null,pend=null,lastDragEnd=0;
-function startDrag(li,y){const ul=li.parentNode;if(!ul||ul.id!=='wl')return;const r=li.getBoundingClientRect();
+function startDrag(li,y){const ul=li.parentNode;if(!ul||(ul.id!=='wl'&&!ul.dataset.sort))return;const r=li.getBoundingClientRect();
   drag={li,ul,off:y-r.top,y,raf:0};li.classList.add('dragging');ul.classList.add('sorting');document.body.classList.add('sorting');
   try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
   layoutDrag();const tick=()=>{if(!drag)return;const t=drag.y,H=innerHeight;let v=0;if(t<90)v=-Math.min(14,(90-t)/5);else if(t>H-120)v=Math.min(14,(t-(H-120))/5);if(v){scrollBy(0,v);layoutDrag()}drag.raf=requestAnimationFrame(tick)};drag.raf=requestAnimationFrame(tick)}
@@ -713,10 +714,17 @@ function layoutDrag(){const{li,ul}=drag,ut=ul.getBoundingClientRect().top,h=li.o
 function flipSwap(el,fn){const b=el.offsetTop;fn();const a=el.offsetTop;el.style.transition='none';el.style.transform=`translateY(${b-a}px)`;void el.offsetWidth;el.style.transition='transform .18s ease';el.style.transform=''}
 function endDrag(){const{li,ul}=drag;cancelAnimationFrame(drag.raf);drag=null;lastDragEnd=Date.now();
   li.style.transition='transform .15s';li.style.transform='';setTimeout(()=>{li.style.transition='';li.classList.remove('dragging');ul.classList.remove('sorting')},150);document.body.classList.remove('sorting');
-  const d=cur();if(!d)return;const ids=[...ul.children].map(x=>x.dataset.id).filter(Boolean),set=new Set(ids),slots=[];
+  const ids=[...ul.children].map(x=>x.dataset.id).filter(Boolean),set=new Set(ids);
+  if(ul.dataset.sort==='folders'){const nf=ids.map(id=>folderById(id)).filter(Boolean).concat(S.folders.filter(f=>!set.has(f.id)));if(nf.some((f,i)=>f!==S.folders[i])){S.folders=nf;saveFolders()}return}
+  if(ul.dataset.sort==='decks'){const slots=[];S.decks.forEach((d,i)=>{if(set.has(d.id))slots.push(i)});const byId=new Map(S.decks.map(d=>[d.id,d])),nd=S.decks.slice();slots.forEach((s,k)=>{nd[s]=byId.get(ids[k])});
+    if(nd.some((d,i)=>d!==S.decks[i])){S.decks=nd;S.decks.forEach((d,i)=>{if(d.ord!==i){d.ord=i;saveDeck(d)}})}return}
+  const d=cur();if(!d)return;const slots=[];
   d.words.forEach((w,i)=>{if(set.has(w.id))slots.push(i)});const byId=new Map(d.words.map(w=>[w.id,w])),nw=d.words.slice();
   slots.forEach((s,k)=>{nw[s]=byId.get(ids[k])});if(nw.some((w,i)=>w!==d.words[i])){d.words=nw;saveDeck(d)}}
-const rowAt=t=>{if(view.name!=='deck'||view.filter==='rand'||!t||!t.closest)return null;if(t.closest('.star'))return null;const li=t.closest('#wl > .word');return li};
+const rowAt=t=>{if(!t||!t.closest)return null;if(t.closest('.star,.more'))return null;
+  if(view.name==='deck'&&view.filter!=='rand')return t.closest('#wl > .word');
+  if(view.name==='home'||view.name==='folder'){const c=t.closest('.decks[data-sort] > .deck');return c&&c.parentNode.children.length>1?c:null}
+  return null};
 /* mouse / pen */
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||e.button!==0)return;const li=rowAt(e.target);if(!li)return;
   if(e.target.closest('.grip')){e.preventDefault();startDrag(li,e.clientY);return}pend={li,x:e.clientX,y:e.clientY}});

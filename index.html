@@ -63,7 +63,13 @@ svg.i .f{fill:currentColor;stroke:none}
 .stat small{font-size:12px;color:var(--muted);margin-top:4px}
 .stat:first-child span{background:linear-gradient(180deg,#BFE0FF,#4F95FF);-webkit-background-clip:text;background-clip:text;color:transparent}
 h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 4px 10px;letter-spacing:.08em}
-.decks{display:flex;flex-direction:column;gap:12px}
+.decks{display:flex;flex-direction:column;gap:12px;position:relative}
+h2 small{font-size:11px;font-weight:500;letter-spacing:0;margin-left:8px;opacity:.75}
+.deck{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.deck.dragging{z-index:5;transition:none;box-shadow:0 0 0 1.5px rgba(147,197,253,.55),0 18px 40px rgba(0,0,0,.55),0 0 30px rgba(59,130,246,.4)}
+[data-theme="light"] .deck.dragging{box-shadow:0 0 0 1.5px rgba(37,99,235,.45),0 16px 36px rgba(30,60,130,.22)}
+.decks.sorting .deck:not(.dragging){pointer-events:none}
+body.sorting .fab{opacity:0;pointer-events:none;transition:opacity .15s}
 .deck{display:flex;align-items:center;gap:14px;background:var(--surface);border-radius:20px;padding:16px 18px 16px 0;box-shadow:var(--shadow);text-align:left;width:100%;overflow:hidden;transition:transform .12s,box-shadow .2s}
 .deck:hover{box-shadow:inset 0 1px 0 rgba(160,200,255,.07),0 0 0 1px rgba(120,170,255,.3),0 12px 30px rgba(0,4,20,.55)}
 .deck:active{transform:scale(.985)}
