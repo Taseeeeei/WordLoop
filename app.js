@@ -414,7 +414,7 @@ document.addEventListener('change',e=>{if(e.target.id==='importFile'){const f=e.
 /* ---------- render ---------- */
 function render(){
   let h;switch(view.name){case'deck':h=renderDeck();break;case'folder':h=renderFolder();break;case'study':h=renderStudy();break;case'result':h=renderResult();break;default:h=renderHome()}
-  app.innerHTML=h;app.className='v-'+view.name;
+  app.innerHTML=h;const cardMode=view.name==='study'&&sess&&sess.mode==='card';app.className='v-'+view.name+(cardMode?' mode-card':'');document.documentElement.classList.toggle('lock',!!cardMode);if(cardMode)window.scrollTo(0,0);
   if(view.name==='study'){if(sess.mode==='card'){attachSwipe();attachSeek()}if(sess.mode==='type'){const i=$('#ans');if(i)setTimeout(()=>i.focus(),30)}}
 }
 

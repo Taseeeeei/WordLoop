@@ -1,6 +1,6 @@
 // WordLoop：オフラインで動かすための仕組み（Service Worker）
 // アプリを更新したら、下の VERSION の数字を1つ増やしてください（例：v2 → v3）
-const VERSION = 'wordloop-v3';
+const VERSION = 'wordloop-v4';
 const FILES = [
   './', './index.html', './app.js', './manifest.webmanifest', './privacy-policy.html',
   './icon.png', './favicon.png', './icon-192.png', './icon-512.png', './icon-maskable-512.png',

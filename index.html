@@ -154,6 +154,17 @@ h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 4px 10px;letter-sp
 .sw{display:flex;flex-direction:column;min-height:calc(100vh - 66px);padding:8px 18px calc(22px + env(safe-area-inset-bottom))}
 .stage{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:6px 0 18px}
 .card3d{position:relative;width:100%;height:min(54vh,430px);perspective:1400px;touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:pointer}
+/* card mode: everything fits in one screen, nothing scrolls */
+html.lock,html.lock body{height:100%;overflow:hidden;overscroll-behavior:none}
+#app.mode-card{height:100vh;height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+#app.mode-card .top{flex:none;position:relative}
+#app.mode-card .sw{flex:1;min-height:0;padding:4px 18px calc(14px + env(safe-area-inset-bottom))}
+#app.mode-card .stage{flex:1;min-height:0;justify-content:flex-start;gap:12px;padding:6px 0 12px}
+#app.mode-card .card3d{flex:1;height:auto;min-height:150px;max-height:540px;touch-action:none}
+#app.mode-card .tools{flex:none}
+#app.mode-card .nav2{flex:none}
+@media (max-height:500px){#app.mode-card .face{padding:26px 18px 14px}#app.mode-card .face .note{display:none}#app.mode-card .face .sub{margin-top:4px;font-size:13px}#app.mode-card .hint{top:8px}#app.mode-card .tap{display:none}#app.mode-card .cimg{max-height:45%;margin-bottom:6px}#app.mode-card .big.withimg{font-size:20px}#app.mode-card .big.withimg.m,#app.mode-card .big.withimg.s,#app.mode-card .big.withimg.xs{font-size:16px}}
+@media (max-height:600px){#app.mode-card .nav2 .btn{height:48px}#app.mode-card .stage{gap:8px;padding-bottom:8px}#app.mode-card .tools .icon,#app.mode-card .tools .star{width:38px;height:38px}#app.mode-card .kbd{display:none}}
 .flip{position:relative;width:100%;height:100%;transition:transform .5s cubic-bezier(.2,.75,.25,1);transform-style:preserve-3d}
 .flip.on{transform:rotateY(180deg)}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;text-align:center;overflow:hidden;
@@ -293,7 +304,7 @@ h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 4px 10px;letter-sp
 .phchg svg.i{width:14px;height:14px}
 
 /* card seek bar */
-.seek{flex:1;position:relative;height:36px;display:flex;align-items:center;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
+.seek{flex:1;position:relative;height:36px;display:flex;align-items:center;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;margin:0 12px 0 6px}
 .seek .pbar{flex:1;height:8px}
 .seek:hover .pbar{height:10px}
 .seek .knob{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--accent),0 0 12px rgba(59,130,246,.6);pointer-events:none;transition:left .25s,transform .15s}
