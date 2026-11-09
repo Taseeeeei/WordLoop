@@ -34,6 +34,7 @@ const ICON={
   folder:'<svg class="i" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 012-2h4l2 2.2h7a2 2 0 012 2V17a2 2 0 01-2 2h-13a2 2 0 01-2-2z"/></svg>',
   move:'<svg class="i" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 012-2h4l2 2.2h7a2 2 0 012 2V17a2 2 0 01-2 2h-13a2 2 0 01-2-2z"/><path d="M9.5 13.3h5.5M12.8 11l2.3 2.3-2.3 2.3"/></svg>',
   home:'<svg class="i" viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1.5 1.5 0 01-1.5 1.5H15v-6h-6v6H5.5A1.5 1.5 0 014 19z"/></svg>',
+  table:'<svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M10 9.5v10"/><path d="M3.5 9.5h17" stroke-width="3"/></svg>',
   bulb:'<svg class="i" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0012 3z"/></svg>'
 };
 const COLORS=['#3B82F6','#22D3EE','#8B5CF6','#2DD4BF','#F59E0B','#EC4899','#94A3B8'];
@@ -54,7 +55,21 @@ const cleanRef=r=>r&&typeof r==='object'?(typeof r.p==='string'&&SAFE_ID.test(r.
 const src=r=>r?(r.p?(photoURL[r.p]||''):r.d||''):'';
 const SAFE_ID=/^[A-Za-z0-9_-]{1,64}$/;
 const safeId=(v,pre)=>{v=typeof v==='string'?v:'';return SAFE_ID.test(v)?v:pre+rid()};
-function cleanWord(w){if(!w||typeof w!=='object')w={};return{id:safeId(w.id,'w'),t:String(w.t||''),m:String(w.m||''),n:String(w.n||''),mas:!!w.mas,c:+w.c||0,w:+w.w||0,star:!!w.star,lt:+w.lt||0,ti:cleanRef(w.ti),mi:cleanRef(w.mi)}}
+const TMAX_R=20,TMAX_C=8;
+function cleanTable(t){if(!t||typeof t!=='object')return null;const ci=(v,lo,hi,d)=>{v=parseInt(v,10);return isNaN(v)?d:Math.max(lo,Math.min(hi,v))};
+  const r=ci(t.r,1,TMAX_R,1),c=ci(t.c,1,TMAX_C,1),src=Array.isArray(t.cells)?t.cells:[];
+  const cells=[];for(let i=0;i<r;i++){const row=Array.isArray(src[i])?src[i]:[];const out=[];for(let j=0;j<c;j++)out.push(String(row[j]==null?'':row[j]).slice(0,200));cells.push(out)}
+  let th=t.th&&typeof t.th==='object'?t.th:{};const k=th.k==='h'||th.k==='v'||th.k==='n'?th.k:'h';let i=ci(th.i,1,99,1);
+  if(k==='h'&&r<2||k==='v'&&c<2||k==='n')th={k:'n',i:0};else{const max=k==='h'?r-1:c-1;th={k,i:Math.min(i,max)}}
+  return{r,c,cells,th}}
+function trimTbl(t){if(!tblHas(t))return null;let r=t.r,c=t.c;const e=x=>!String(x).trim();while(r>1&&t.cells[r-1].every(e))r--;while(c>1&&t.cells.slice(0,r).every(row=>e(row[c-1])))c--;return cleanTable({r,c,cells:t.cells.slice(0,r).map(row=>row.slice(0,c)),th:t.th})}
+const tblHas=t=>!!t&&t.cells.some(r=>r.some(x=>String(x).trim()));
+const tblText=(t,sep)=>t?t.cells.flat().map(x=>String(x).trim()).filter(Boolean).join(sep||' / '):'';
+const tblSum=t=>{const s=tblText(t);return s.length>60?s.slice(0,60)+'…':s};
+function tableHTML(t){if(!t)return'';const fs=Math.max(10,Math.min(20,Math.round(24-t.r*.7-t.c*1.3)));let o=`<table class="tbl" style="font-size:${fs}px">`;
+  for(let i=0;i<t.r;i++){o+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.k==='h'&&t.th.i===i+1?'tb ':'')+(t.th.k==='v'&&t.th.i===j+1?'tr':'');o+=`<td class="${cl}">${esc(t.cells[i][j])}</td>`}o+='</tr>'}return o+'</table>'}
+const speechOf=(text,t)=>text||tblText(t,'、');
+function cleanWord(w){if(!w||typeof w!=='object')w={};return{id:safeId(w.id,'w'),t:String(w.t||''),m:String(w.m||''),n:String(w.n||''),mas:!!w.mas,c:+w.c||0,w:+w.w||0,star:!!w.star,lt:+w.lt||0,ti:cleanRef(w.ti),mi:cleanRef(w.mi),tt:cleanTable(w.tt),mt:cleanTable(w.mt)}}
 function cleanDeck(d){if(!d||typeof d!=='object')return null;return{id:safeId(d.id,'d'),name:String(d.name||'単語帳'),color:fixCol(d.color),createdAt:+d.createdAt||Date.now(),updatedAt:+d.updatedAt||0,words:Array.isArray(d.words)?d.words.map(cleanWord):[],folder:typeof d.folder==='string'&&SAFE_ID.test(d.folder)?d.folder:null}}
 function cleanFolder(f){if(!f||typeof f!=='object'||!f.id)return null;return{id:safeId(f.id,'f'),name:String(f.name||'ファイル'),color:fixCol(f.color),createdAt:+f.createdAt||Date.now()}}
 const NATIVE=!!(window.Capacitor&&typeof Capacitor.isNativePlatform==='function'&&Capacitor.isNativePlatform());
@@ -212,14 +227,14 @@ function renderDeck(){
 function visibleWords(d){
   const q=(view.q||'').trim().toLowerCase();
   let list=d.words.filter(filterFn(view.filter||'all'));
-  if(q)list=list.filter(w=>(w.t+' '+w.m+' '+w.n).toLowerCase().includes(q));
+  if(q)list=list.filter(w=>(w.t+' '+w.m+' '+w.n+' '+tblText(w.tt)+' '+tblText(w.mt)).toLowerCase().includes(q));
   if(view.filter==='rand'){const pos=new Map((view.shuf||[]).map((id,i)=>[id,i]));list=list.slice().sort((a,b)=>(pos.has(a.id)?pos.get(a.id):1e9)-(pos.has(b.id)?pos.get(b.id):1e9))}
   return list}
 function listHTML(d){
   const list=visibleWords(d),rnd=view.filter==='rand';
   if(!d.words.length)return`<div class="words"><div class="nolist">まだ単語がありません。<br>下のボタンから追加しましょう。<br>Excelやスプレッドシートからの貼り付けもOK。</div></div>`;
   if(!list.length)return`<div class="words"><div class="nolist">該当する単語はありません</div></div>`;
-  return`${rnd?`<div class="sorthint">${ICON.shuffle}ランダムに表示中 ・ もう一度押すと再シャッフル（保存された順番は変わりません）</div>`:list.length>1?`<div class="sorthint">${ICON.grip}をドラッグ（スマホは行を長押し）で並び替え</div>`:''}<ul class="words ${prefs.red?'redsheet':''}" id="wl">${list.map(w=>`<li class="word" data-act="editWord" data-id="${w.id}">${rnd?'':`<span class="grip" data-act="noop" aria-label="並び替え">${ICON.grip}</span>`}<span class="dot ${w.mas?'done':weak(w)?'weak':''}"></span><div class="wt"><b>${w.t?esc(w.t):'<span class="muted-lbl">（写真）</span>'}</b><span class="mean" data-act="reveal">${w.m?esc(w.m):'（写真）'}</span>${w.n?`<small>${esc(w.n)}</small>`:''}</div>${(w.ti||w.mi)?`<img class="thumb ${w.ti?'':'mth'}" src="${esc(src(w.ti||w.mi))}" alt="" loading="lazy">`:''}<button class="star ${w.star?'on':''}" data-act="star" data-id="${w.id}" aria-label="チェック">${ICON.star}</button></li>`).join('')}</ul>`;
+  return`${rnd?`<div class="sorthint">${ICON.shuffle}ランダムに表示中 ・ もう一度押すと再シャッフル（保存された順番は変わりません）</div>`:list.length>1?`<div class="sorthint">${ICON.grip}をドラッグ（スマホは行を長押し）で並び替え</div>`:''}<ul class="words ${prefs.red?'redsheet':''}" id="wl">${list.map(w=>`<li class="word" data-act="editWord" data-id="${w.id}">${rnd?'':`<span class="grip" data-act="noop" aria-label="並び替え">${ICON.grip}</span>`}<span class="dot ${w.mas?'done':weak(w)?'weak':''}"></span><div class="wt"><b>${w.t?esc(w.t):tblHas(w.tt)?`<span class="muted-lbl">${esc(tblSum(w.tt))}</span>`:'<span class="muted-lbl">（写真）</span>'}${tblHas(w.tt)||tblHas(w.mt)?'<span class="tbtag">表</span>':''}</b><span class="mean" data-act="reveal">${w.m?esc(w.m):tblHas(w.mt)?esc(tblSum(w.mt)):'（写真）'}</span>${w.n?`<small>${esc(w.n)}</small>`:''}</div>${(w.ti||w.mi)?`<img class="thumb ${w.ti?'':'mth'}" src="${esc(src(w.ti||w.mi))}" alt="" loading="lazy">`:''}<button class="star ${w.star?'on':''}" data-act="star" data-id="${w.id}" aria-label="チェック">${ICON.star}</button></li>`).join('')}</ul>`;
 }
 
 /* ---------- study ---------- */
@@ -233,35 +248,35 @@ function renderStudy(){
   const head=`<header class="top"><button class="icon" data-act="quit" aria-label="終了">${ICON.x}</button>${bar}<span class="cnt">${sess.i+1} / ${n}</span></header>`;
   let body='';
   if(sess.mode==='card'){
-    const tm=sess.dir==='tm',q=tm?w.t:w.m,a=tm?w.m:w.t,qi=tm?w.ti:w.mi,ai=tm?w.mi:w.ti,last=sess.i===n-1,enter=sess.enter||'';sess.enter='';
+    const tm=sess.dir==='tm',q=tm?w.t:w.m,a=tm?w.m:w.t,qi=tm?w.ti:w.mi,ai=tm?w.mi:w.ti,qt=tm?w.tt:w.mt,at=tm?w.mt:w.tt,last=sess.i===n-1,enter=sess.enter||'';sess.enter='';
     body=`<div class="stage"><div class="card3d ${enter}" id="card" style="--c:${d.color}"><div class="flip ${sess.flipped?'on':''}" id="flip">
-      <div class="face"><span class="hint">${tm?'単語':'意味'}</span>${sideHTML(q,qi)}<span class="tap">タップで裏返す ・ 左右にスライドで移動</span></div>
-      <div class="face back"><span class="hint">${tm?'意味':'単語'}</span>${sideHTML(a,ai)}${q?`<div class="sub">${esc(q)}</div>`:''}${w.n?`<div class="note">${esc(w.n)}</div>`:''}</div>
+      <div class="face"><span class="hint">${tm?'単語':'意味'}</span>${sideHTML(q,qi,qt)}<span class="tap">タップで裏返す ・ 左右にスライドで移動</span></div>
+      <div class="face back"><span class="hint">${tm?'意味':'単語'}</span>${sideHTML(a,ai,at)}${q?`<div class="sub">${esc(q)}</div>`:''}${w.n?`<div class="note">${esc(w.n)}</div>`:''}</div>
       </div></div>
       <div class="tools"><button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button><button class="icon" data-act="swapDir" aria-label="表と裏を入れ替え" title="表と裏を入れ替え">${ICON.swap}</button><button class="star ${w.star?'on':''}" data-act="starCur" aria-label="チェック">${ICON.star}</button></div></div>
       <div class="nav2"><button class="btn ghost" data-act="cardPrev" ${sess.i===0?'disabled':''}>${ICON.back}前へ</button><button class="btn ${last?'primary':'ghost'}" data-act="cardNext">${last?'完了':'次へ'}${last?ICON.check:ICON.fwd}</button></div>
       <div class="kbd">クリック・Space：裏返す　← →：前・次の単語</div>`;
   }else if(sess.mode==='quiz'){
     if(sess.optsFor!==sess.i){sess.opts=makeOpts(d,w);sess.optsFor=sess.i;sess.picked=null}
-    const tm=sess.dir==='tm',q=tm?w.t:w.m,qi=tm?w.ti:w.mi,done=sess.picked!=null;
-    body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">${tm?'意味を選んでください':'単語を選んでください'}</span>${sideHTML(q,qi)}${done&&w.n?`<div class="note">${esc(w.n)}</div>`:''}<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button></div>
+    const tm=sess.dir==='tm',q=tm?w.t:w.m,qi=tm?w.ti:w.mi,qt=tm?w.tt:w.mt,done=sess.picked!=null;
+    body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">${tm?'意味を選んでください':'単語を選んでください'}</span>${sideHTML(q,qi,qt)}${done&&w.n?`<div class="note">${esc(w.n)}</div>`:''}<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button></div>
       <div class="opts">${sess.opts.map((o,i)=>{let c='';if(done){if(o.id===w.id)c='right';else if(i===sess.picked)c='wrong';else c='dim'}return`<button class="opt ${c}" data-act="pick" data-i="${i}"><span class="num">${i+1}</span>${o.img?`<img class="othumb" src="${esc(src(o.img))}" alt="">`:''}${esc(o.text)}</button>`}).join('')}</div>
       ${done&&sess.opts[sess.picked].id!==w.id?`<button class="btn primary wide nextbtn" data-act="next">次へ</button>`:''}</div>
       <div class="kbd">1〜4：選択　Enter：次へ</div>`;
   }else{
     const t=sess.typed;
     const hint=sess.hint&&!t?`<div class="hinttxt">${esc([...w.t].map((ch,i)=>i===0||ch===' '?ch:'_').join(''))}</div>`:'';
-    body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">この意味の単語は？</span>${sideHTML(w.m,w.mi)}${hint}${t&&w.n?`<div class="note">${esc(w.n)}</div>`:''}${t?`<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button>`:''}</div>
+    body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">この意味の単語は？</span>${sideHTML(w.m,w.mi,w.mt)}${hint}${t&&w.n?`<div class="note">${esc(w.n)}</div>`:''}${t?`<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button>`:''}</div>
       ${t?`<div class="fb ${t.ok?'ok':'ng'}">${t.ok?'正解！':'不正解'}${t.ok?'':`<span class="corr">${esc(w.t)}</span>${t.val?`<span class="yours">あなたの答え：${esc(t.val)}</span>`:''}`}</div><button class="btn primary wide nextbtn" data-act="next">次へ</button>`
       :`<form class="typein" id="typeform"><input id="ans" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="単語を入力" enterkeyhint="done"><div class="row"><button type="button" class="btn ghost" data-act="hint">${ICON.bulb}ヒント</button><button type="button" class="btn ghost" data-act="giveup">わからない</button></div><button type="submit" class="btn primary wide">答え合わせ</button></form>`}</div>`;
   }
   return head+`<main class="sw">${body}</main>`;
 }
-function sideHTML(text,ref){return(ref?`<img class="cimg ${text?'':'solo'}" src="${esc(src(ref))}" alt="" draggable="false">`:'')+(text?`<div class="big ${ref?'withimg ':''}${sizeCls(text)}">${esc(text)}</div>`:'')}
+function sideHTML(text,ref,tbl){tbl=tblHas(tbl)?tbl:null;return(ref?`<img class="cimg ${text||tbl?'':'solo'} ${tbl?'withtbl':''}" src="${esc(src(ref))}" alt="" draggable="false">`:'')+(text?`<div class="big ${tbl?'withtbl ':ref?'withimg ':''}${sizeCls(text)}">${esc(text)}</div>`:'')+(tbl?`<div class="ctable">${tableHTML(tbl)}</div>`:'')}
 function makeOpts(d,w){
-  const key=sess.dir==='tm'?'m':'t',k=x=>x[key]||('#'+x.id),seen=new Set([k(w)]),picks=[];
+  const key=sess.dir==='tm'?'m':'t',k=x=>x[key]||(tblHas(x[key+'t'])?'#t'+tblText(x[key+'t']):'#'+x.id),seen=new Set([k(w)]),picks=[];
   for(const o of shuffle(d.words)){if(o.id===w.id||seen.has(k(o)))continue;seen.add(k(o));picks.push(o);if(picks.length===3)break}
-  return shuffle([w,...picks]).map(x=>({id:x.id,text:x[key],img:x[key+'i']}));
+  return shuffle([w,...picks]).map(x=>({id:x.id,text:x[key]||(tblHas(x[key+'t'])?'（表）'+tblSum(x[key+'t']):''),img:x[key+'i']}));
 }
 function record(ok){
   const d=deckById(sess.deckId),w=curWord();if(!w)return;
@@ -295,7 +310,7 @@ function attachSeek(){
   let drag=false,idx=sess.i;
   const at=x=>{const r=bar.getBoundingClientRect(),f=Math.max(0,Math.min(1,(x-r.left)/r.width));return Math.min(n-1,Math.max(0,Math.ceil(f*n)-1))};
   const show=i=>{idx=i;const p=(i+1)/n*100;fill.style.width=p+'%';knob.style.left=p+'%';if(cnt)cnt.textContent=`${i+1} / ${n}`;
-    const d=deckById(sess.deckId),w=d&&d.words.find(x=>x.id===sess.items[i]),q=w?(sess.dir==='tm'?w.t:w.m):'';
+    const d=deckById(sess.deckId),w=d&&d.words.find(x=>x.id===sess.items[i]),q=w?(sess.dir==='tm'?(w.t||tblSum(w.tt)):(w.m||tblSum(w.mt))):'';
     tip.innerHTML=`<small>${i+1}</small>${esc(q||'（写真）')}`;
     const sr=s.getBoundingClientRect(),br=bar.getBoundingClientRect(),tw=tip.offsetWidth,kx=br.left-sr.left+br.width*p/100;
     tip.style.left=Math.max(tw/2-sr.left+6,Math.min(innerWidth-sr.left-tw/2-6,kx))+'px'};
@@ -449,29 +464,51 @@ function openAddToFolder(fid){const f=folderById(fid);if(!f)return;const others=
   openModal(`${mh('「'+esc(f.name)+'」に移動')}${others.length?`<p class="muted" style="margin-top:-4px">タップした単語帳をこのファイルに移動します。</p><div class="menu big">${others.map(d=>{const of=deckFolder(d);return`<button data-act="moveHere" data-id="${d.id}" data-f="${fid}"><span class="mi" ${miStyle(d.color)}>${ICON.cards}</span><span>${esc(d.name)}<small>${of?'ファイル「'+esc(folderById(of).name)+'」':'ホーム'} ・ ${d.words.length}語</small></span></button>`}).join('')}</div>`:'<p class="muted">ほかに移動できる単語帳はありません。</p>'}`)}
 function afterDeckGone(d){if(view.name==='deck'&&view.id===d.id){const f=deckFolder(d);go(f?{name:'folder',id:f}:{name:'home'})}else render()}
 let wf=null;
-const wfSide=ref=>({ref:ref||null,pending:null,removed:false});
+const wfSide=(ref,tbl)=>({ref:ref||null,pending:null,removed:false,table:tbl?cleanTable(JSON.parse(JSON.stringify(tbl))):null});
+function thickOpts(t){const o=[];for(let i=1;i<t.r;i++)o.push([`h:${i}`,`横線：${i}行目と${i+1}行目の間`]);for(let j=1;j<t.c;j++)o.push([`v:${j}`,`縦線：${j}列目と${j+1}列目の間`]);o.push(['n:0','なし']);return o}
+function tblSlot(side){const t=wf&&wf[side].table;
+  if(!t)return`<button type="button" class="addph" data-act="addTable" data-side="${side}">${ICON.table}<span>表を追加</span><small>行と列を指定してマスに入力</small></button>`;
+  const cur=`${t.th.k}:${t.th.i}`;let g='';
+  for(let i=0;i<t.r;i++){g+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.k==='h'&&t.th.i===i+1?'tb ':'')+(t.th.k==='v'&&t.th.i===j+1?'tr':'');g+=`<td class="${cl}"><input class="tbcell" data-side="${side}" data-r="${i}" data-c="${j}" value="${esc(t.cells[i][j])}" maxlength="200" autocomplete="off" aria-label="${i+1}行${j+1}列"></td>`}g+='</tr>'}
+  return`<div class="tbed"><div class="tbbar">行<span class="stp"><button type="button" data-act="tbStep" data-side="${side}" data-k="r" data-d="-1" ${t.r<=1?'disabled':''} aria-label="行を減らす">−</button><b>${t.r}</b><button type="button" data-act="tbStep" data-side="${side}" data-k="r" data-d="1" ${t.r>=TMAX_R?'disabled':''} aria-label="行を増やす">＋</button></span>
+    列<span class="stp"><button type="button" data-act="tbStep" data-side="${side}" data-k="c" data-d="-1" ${t.c<=1?'disabled':''} aria-label="列を減らす">−</button><b>${t.c}</b><button type="button" data-act="tbStep" data-side="${side}" data-k="c" data-d="1" ${t.c>=TMAX_C?'disabled':''} aria-label="列を増やす">＋</button></span>
+    <button type="button" class="rm" data-act="rmTable" data-side="${side}">${ICON.trash}表を削除</button></div>
+    <label class="tbthick">太線<select data-tbthick="${side}">${thickOpts(t).map(([v,l])=>`<option value="${v}" ${v===cur?'selected':''}>${l}</option>`).join('')}</select></label>
+    <div class="tbwrap"><table class="tbl tbl-edit">${g}</table></div></div>`}
+function refreshTb(side){const el=$('#tb-'+side);if(el&&wf)el.innerHTML=tblSlot(side)}
+function resizeTbl(t,r,c){const cells=[];for(let i=0;i<r;i++){const row=[];for(let j=0;j<c;j++)row.push(t.cells[i]&&t.cells[i][j]!=null?t.cells[i][j]:'');cells.push(row)}return cleanTable({r,c,cells,th:t.th})}
+document.addEventListener('input',e=>{const x=e.target;if(x.classList&&x.classList.contains('tbcell')&&wf){const t=wf[x.dataset.side]&&wf[x.dataset.side].table;if(t)t.cells[+x.dataset.r][+x.dataset.c]=x.value.slice(0,200)}});
+document.addEventListener('change',e=>{const x=e.target;if(x.dataset&&x.dataset.tbthick&&wf){const s=x.dataset.tbthick,t=wf[s]&&wf[s].table;if(!t)return;const[k,i]=x.value.split(':');wf[s].table=cleanTable({...t,th:{k,i:+i}});refreshTb(s)}});
+document.addEventListener('keydown',e=>{const x=e.target;if(e.key==='Enter'&&x.classList&&x.classList.contains('tbcell')){e.preventDefault();const t=wf&&wf[x.dataset.side]&&wf[x.dataset.side].table;if(!t)return;let r=+x.dataset.r,c=+x.dataset.c+1;if(c>=t.c){c=0;r++}if(r>=t.r)return;const n=document.querySelector(`.tbcell[data-side="${x.dataset.side}"][data-r="${r}"][data-c="${c}"]`);if(n)n.focus()}});
 function phSlot(side){const s=wf[side],u=s.pending?s.pending.preview:(!s.removed&&s.ref?src(s.ref):'');
   const inp=`<input type="file" accept="image/*" data-side="${side}" hidden>`;
   if(u)return`<div class="ph"><img src="${esc(u)}" alt=""><button type="button" class="phx" data-act="rmPhoto" data-side="${side}" aria-label="写真を削除">${ICON.x}</button><label class="phchg">${ICON.camera}変更${inp}</label></div>`;
   return`<label class="addph">${ICON.camera}<span>写真を追加</span><small>選択・貼り付け・ドロップ</small>${inp}</label>`}
 function refreshPh(side){const el=$('#ph-'+side);if(el&&wf)el.innerHTML=phSlot(side)}
 function openWordModal(id){const d=cur(),w=id?d.words.find(x=>x.id===id):null;
-  wf={t:wfSide(w&&w.ti),m:wfSide(w&&w.mi),busy:false};
+  wf={t:wfSide(w&&w.ti,w&&w.tt),m:wfSide(w&&w.mi,w&&w.mt),busy:false};
   openModal(`<form id="wordform" data-id="${id||''}" novalidate>${mh(w?'単語を編集':'単語を追加')}
-  <div class="fld"><span>表：単語・問題</span><input name="t" value="${esc(w?w.t:'')}" autofocus autocomplete="off" autocapitalize="off" spellcheck="false"><div class="phslot" id="ph-t" data-side="t">${phSlot('t')}</div></div>
-  <div class="fld"><span>裏：意味・答え</span><input name="m" value="${esc(w?w.m:'')}" autocomplete="off"><div class="phslot" id="ph-m" data-side="m">${phSlot('m')}</div></div>
+  <div class="fld"><span>表：単語・問題</span><input name="t" value="${esc(w?w.t:'')}" autofocus autocomplete="off" autocapitalize="off" spellcheck="false"><div class="phslot" id="ph-t" data-side="t">${phSlot('t')}</div><div class="tblslot" id="tb-t">${tblSlot('t')}</div></div>
+  <div class="fld"><span>裏：意味・答え</span><input name="m" value="${esc(w?w.m:'')}" autocomplete="off"><div class="phslot" id="ph-m" data-side="m">${phSlot('m')}</div><div class="tblslot" id="tb-m">${tblSlot('m')}</div></div>
   <label class="fld"><span>メモ・例文<i>任意 ・ カードの裏に表示</i></span><textarea name="n" rows="2">${esc(w?w.n:'')}</textarea></label>
   ${w?`<div class="toggle-row">覚えた<label class="switch"><input type="checkbox" name="mas" ${w.mas?'checked':''}><span></span></label></div><div class="wstat">正解 ${w.c}回 ・ 不正解 ${w.w}回</div>`:''}
   <div class="mf">${w?`<button type="button" class="btn ghost danger" data-act="delWord" data-id="${w.id}">${ICON.trash}削除</button>`:`<button type="submit" class="btn ghost" name="more" value="1">続けて追加</button>`}<button type="submit" class="btn primary">保存</button></div></form>`)}
-function parseLines(txt){const out=[];for(let line of txt.split(/\r?\n/)){line=line.trim();if(!line)continue;let t,m,n='';
+// one CSV line -> fields ("…" quoting and "" escapes supported; , or ， separates)
+function csvSplit(line){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const ch=line[i];
+    if(q){if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}
+    else if(ch==='"'&&!cur.trim())q=true;
+    else if(ch===','||ch==='，'){out.push(cur);cur=''}
+    else cur+=ch}
+  out.push(cur);return out.map(s=>{s=s.trim();return/^'[=+@\t\r]/.test(s)?s.slice(1):s})}
+function parseLines(txt){const out=[];let seenLine=false;for(let line of txt.split(/\r?\n/)){line=line.trim();if(!line)continue;let t,m,n='';
   if(line.includes('\t')){const p=line.split('\t');t=p[0];m=p[1];n=p.slice(2).join(' ')}
-  else if(/[,，]/.test(line)){const i=line.search(/[,，]/);t=line.slice(0,i);m=line.slice(i+1)}
+  else if(/[,，]/.test(line)){const p=csvSplit(line);t=p[0];m=p[1];n=p.slice(2).filter(x=>x!=='').join(', ')}
   else{const r=line.match(/^(.+?)\s*(?:[:：=＝]|\s-\s)\s*(.+)$/)||line.match(/^([\x20-\x7E]+?)\s+([^\x00-\x7F].*)$/);if(r){t=r[1];m=r[2]}}
   t=(t||'').trim().replace(/^"|"$/g,'');m=(m||'').trim().replace(/^"|"$/g,'');
-  if(t&&m&&!/^(単語|英単語|word|term)$/i.test(t))out.push({t,m,n:n.trim()})}return out}
+  const header=!seenLine&&/^(単語|英単語|word|term)$/i.test(t);seenLine=true;if(t&&m&&!header)out.push({t,m,n:n.trim()})}return out}
 function openBulk(){openModal(`<form id="bulkform">${mh('まとめて追加')}
-  <p class="muted">1行に1語ずつ。「単語,意味」「単語:意味」またはタブ区切りに対応。Excelやスプレッドシートの2列（3列目はメモ）をそのまま貼り付けできます。</p>
-  <label class="fld"><textarea name="txt" id="bulktxt" rows="9" placeholder="apple,りんご&#10;borrow,借りる&#10;decide	決める" autofocus></textarea></label>
+  <p class="muted">1行に1語ずつ。「単語,意味」または「単語,意味,メモ」の形で入力します。「単語:意味」やタブ区切りにも対応。Excelやスプレッドシートの2〜3列（3列目はメモ）をそのまま貼り付けできます。</p>
+  <label class="fld"><textarea name="txt" id="bulktxt" rows="9" placeholder="apple,りんご&#10;borrow,借りる,⇔ lend 貸す&#10;decide,決める,decide to do ～することに決める" autofocus></textarea></label>
   <div class="mf"><button class="btn primary" type="submit" id="bulkbtn">0語を追加</button></div></form>`)}
 function openSetup(){const d=cur();if(!d.words.length){toast('まず単語を追加してください');return}
   const c=k=>d.words.filter(filterFn(k)).length;
@@ -546,7 +583,11 @@ const ACT={
   seg(el){prefs[el.dataset.key]=el.dataset.val;savePrefs();if(el.dataset.key==='tmode'){const f=$('#dirfld');if(f)f.style.display=prefs.tmode==='type'?'none':''}el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));updStart()},
   start(){const mode=prefs.tmode,d=cur();if(mode==='quiz'&&d.words.length<2){toast('4択テストには2語以上必要です');return}const p=poolFor(d);if(!p.length)return;closeModal();startSession(mode,p.map(w=>w.id))},
   quit(){clearTimeout(sess.timer);try{speechSynthesis.cancel()}catch(e){}if(sess.mode!=='card'&&sess.res.length)go({name:'result',id:sess.deckId});else go(sess.back)},
-  speak(){const w=curWord();if(w&&w.t)speak(w.t)},
+  speak(){const w=curWord();if(!w)return;let t='';
+    if(sess&&sess.mode==='card'){const termSide=(sess.dir==='tm')!==!!sess.flipped;t=termSide?speechOf(w.t,w.tt):speechOf(w.m,w.mt)}
+    else if(sess&&sess.mode==='quiz'){t=sess.dir==='tm'?speechOf(w.t,w.tt):speechOf(w.m,w.mt)}
+    else t=w.t;
+    if(!t){toast('読み上げる文字がありません');return}speak(t)},
   pick(el){pick(+el.dataset.i)},
   next(){nextQ()},
   giveup(){answerType(null)},
@@ -560,6 +601,9 @@ const ACT={
   theme(el){prefs.theme=el.dataset.val;savePrefs();applyTheme();el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))},
   testSound(){playSfx(true,true);setTimeout(()=>speak('Hello'),450)},
   resume(){const d=deckById(prefs.lastDeck)||S.decks[0];if(d)go({name:'deck',id:d.id,filter:'all',q:''})},
+  addTable(el){const s=el.dataset.side;if(!wf||!wf[s])return;wf[s].table=cleanTable({r:3,c:2,cells:[],th:{k:'h',i:1}});refreshTb(s);const f=document.querySelector(`.tbcell[data-side="${s}"]`);if(f)f.focus()},
+  tbStep(el){const s=el.dataset.side,t=wf&&wf[s]&&wf[s].table;if(!t)return;const d=+el.dataset.d;let r=t.r,c=t.c;if(el.dataset.k==='r')r=Math.max(1,Math.min(TMAX_R,r+d));else c=Math.max(1,Math.min(TMAX_C,c+d));wf[s].table=resizeTbl(t,r,c);refreshTb(s)},
+  rmTable(el){const s=el.dataset.side;if(!wf||!wf[s])return;wf[s].table=null;refreshTb(s)},
   rmPhoto(el){const s=wf&&wf[el.dataset.side];if(!s)return;if(s.pending&&s.pending.blob)URL.revokeObjectURL(s.pending.preview);s.pending=null;s.removed=true;refreshPh(el.dataset.side)},
   confirmOk(){const cb=modalCb;modalCb=null;closeModal();if(cb)cb()}
 };
@@ -593,8 +637,8 @@ function delAsset(ref){if(!ref||!ref.p)return;const id=ref.p;setTimeout(()=>{try
 async function saveWordForm(f,fd,sub){
   if(!wf||wf.busy)return;const d=cur();if(!d)return;
   const t=String(fd.get('t')||'').trim(),m=String(fd.get('m')||'').trim(),n=String(fd.get('n')||'').trim();
-  const has=s=>!!(wf[s].pending||(!wf[s].removed&&wf[s].ref));
-  if(!(t||has('t'))||!(m||has('m'))){toast('表と裏に、それぞれ文字か写真を入れてください');return}
+  const has=s=>!!(wf[s].pending||(!wf[s].removed&&wf[s].ref)||tblHas(wf[s].table));
+  if(!(t||has('t'))||!(m||has('m'))){toast('表と裏に、それぞれ文字・写真・表のどれかを入れてください');return}
   const cur0=wf;cur0.busy=true;const btns=[...f.querySelectorAll('button[type=submit]')],pb=f.querySelector('.btn.primary[type=submit]'),lbl=pb.textContent;
   btns.forEach(b=>b.disabled=true);if(cur0.t.pending||cur0.m.pending)pb.textContent='写真を保存中…';
   const refs={},old=[];
@@ -603,9 +647,9 @@ async function saveWordForm(f,fd,sub){
       else if(x.removed){refs[s]=null;if(x.ref)old.push(x.ref)}
       else refs[s]=x.ref||null}}
   catch(err){cur0.busy=false;btns.forEach(b=>b.disabled=false);pb.textContent=lbl;toast('写真を保存できませんでした。もう一度お試しください');return}
-  if(f.dataset.id){const w=d.words.find(x=>x.id===f.dataset.id);if(w){w.t=t;w.m=m;w.n=n;w.mas=fd.get('mas')==='on';w.ti=refs.t;w.mi=refs.m}saveDeck(d);old.forEach(delAsset);wf=null;closeModal();render();return}
-  const dup=!!t&&d.words.some(w=>norm(w.t)===norm(t));d.words.push(cleanWord({id:'w'+rid(),t,m,n,ti:refs.t,mi:refs.m}));saveDeck(d);render();
-  if(sub&&sub.value==='1'&&wf===cur0){f.reset();wf={t:wfSide(null),m:wfSide(null),busy:false};refreshPh('t');refreshPh('m');btns.forEach(b=>b.disabled=false);pb.textContent=lbl;f.querySelector('[name=t]').focus();toast(dup?'追加しました（同じ単語が既にあります）':'追加しました')}
+  if(f.dataset.id){const w=d.words.find(x=>x.id===f.dataset.id);if(w){w.t=t;w.m=m;w.n=n;w.mas=fd.get('mas')==='on';w.ti=refs.t;w.mi=refs.m;w.tt=trimTbl(cur0.t.table);w.mt=trimTbl(cur0.m.table)}saveDeck(d);old.forEach(delAsset);wf=null;closeModal();render();return}
+  const dup=!!t&&d.words.some(w=>norm(w.t)===norm(t));d.words.push(cleanWord({id:'w'+rid(),t,m,n,ti:refs.t,mi:refs.m,tt:trimTbl(cur0.t.table),mt:trimTbl(cur0.m.table)}));saveDeck(d);render();
+  if(sub&&sub.value==='1'&&wf===cur0){f.reset();wf={t:wfSide(null),m:wfSide(null),busy:false};refreshPh('t');refreshPh('m');refreshTb('t');refreshTb('m');btns.forEach(b=>b.disabled=false);pb.textContent=lbl;f.querySelector('[name=t]').focus();toast(dup?'追加しました（同じ単語が既にあります）':'追加しました')}
   else{wf=null;closeModal();if(dup)toast('同じ単語が既に登録されています')}
 }
 async function compressImg(file,max,q){
