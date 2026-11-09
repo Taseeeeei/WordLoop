@@ -164,7 +164,7 @@ html.lock,html.lock body{height:100%;overflow:hidden;overscroll-behavior:none}
 #app.mode-card .tools{flex:none}
 #app.mode-card .nav2{flex:none}
 @media (max-height:500px){#app.mode-card .face{padding:26px 18px 14px}#app.mode-card .face .note{display:none}#app.mode-card .face .sub{margin-top:4px;font-size:13px}#app.mode-card .hint{top:8px}#app.mode-card .tap{display:none}#app.mode-card .cimg{max-height:45%;margin-bottom:6px}#app.mode-card .big.withimg{font-size:20px}#app.mode-card .big.withimg.m,#app.mode-card .big.withimg.s,#app.mode-card .big.withimg.xs{font-size:16px}}
-@media (max-height:600px){#app.mode-card .nav2 .btn{height:48px}#app.mode-card .stage{gap:8px;padding-bottom:8px}#app.mode-card .tools .icon,#app.mode-card .tools .star{width:38px;height:38px}#app.mode-card .kbd{display:none}}
+@media (max-height:600px){#app.mode-card .nav2 .btn{height:48px}#app.mode-card .stage{gap:8px;padding-bottom:8px}#app.mode-card .tools .icon,#app.mode-card .tools .star{width:38px;height:38px}#app.mode-card .tools .mast{height:38px}#app.mode-card .kbd{display:none}}
 .flip{position:relative;width:100%;height:100%;transition:transform .5s cubic-bezier(.2,.75,.25,1);transform-style:preserve-3d}
 .flip.on{transform:rotateY(180deg)}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;text-align:center;overflow:hidden;
@@ -345,6 +345,13 @@ button.addph{width:100%;text-align:left}
 .fld .tbl-edit input{width:100%;min-width:70px;border:0;border-radius:0;background:transparent;padding:9px 6px;font-size:15px;font-weight:600;text-align:center;color:var(--ink);outline:none;box-shadow:none}
 .fld .tbl-edit input:focus{background:var(--accent-soft);box-shadow:none}
 .tbtag{display:inline-block;font-size:10.5px;font-weight:700;color:var(--accent2);background:var(--accent-soft);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+
+/* mastered toggle on cards */
+.tools .mast{height:42px;padding:0 15px 0 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;background:var(--surface);box-shadow:var(--shadow);color:var(--muted);font-size:13px;font-weight:700;white-space:nowrap;transition:background .15s,color .15s,box-shadow .15s}
+.tools .mast svg.i{width:18px;height:18px;stroke-width:2.6;opacity:.45}
+.tools .mast.on{background:var(--ok-soft);color:var(--ok);box-shadow:0 0 0 1.5px var(--ok),0 0 14px rgba(45,212,191,.25)}
+.tools .mast.on svg.i{opacity:1}
+.tools .mast:active{transform:scale(.96)}
 
 /* card seek bar */
 .seek{flex:1;position:relative;height:36px;display:flex;align-items:center;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;margin:0 12px 0 6px}

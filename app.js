@@ -255,9 +255,9 @@ function renderStudy(){
       <div class="face"><span class="hint">${tm?'表':'裏'}</span>${sideHTML(q,qi,qt)}<span class="tap">タップで裏返す ・ 左右にスライドで移動</span></div>
       <div class="face back"><span class="hint">${tm?'裏':'表'}</span>${sideHTML(a,ai,at)}${q?`<div class="sub">${esc(q)}</div>`:''}${w.n?`<div class="note">${esc(w.n)}</div>`:''}</div>
       </div></div>
-      <div class="tools"><button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button><button class="icon" data-act="swapDir" aria-label="表と裏を入れ替え" title="表と裏を入れ替え">${ICON.swap}</button><button class="star ${w.star?'on':''}" data-act="starCur" aria-label="チェック">${ICON.star}</button></div></div>
+      <div class="tools"><button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button><button class="icon" data-act="swapDir" aria-label="表と裏を入れ替え" title="表と裏を入れ替え">${ICON.swap}</button><button class="star ${w.star?'on':''}" data-act="starCur" aria-label="チェック">${ICON.star}</button><button class="mast ${w.mas?'on':''}" data-act="toggleMas" aria-pressed="${w.mas}">${ICON.check}<span>${w.mas?'覚えた':'覚えていない'}</span></button></div></div>
       <div class="nav2"><button class="btn ghost" data-act="cardPrev" ${sess.i===0?'disabled':''}>${ICON.back}前へ</button><button class="btn ${last?'primary':'ghost'}" data-act="cardNext">${last?'完了':'次へ'}${last?ICON.check:ICON.fwd}</button></div>
-      <div class="kbd">クリック・Space：裏返す　← →：前・次のカード</div>`;
+      <div class="kbd">クリック・Space：裏返す　← →：前・次のカード　M：覚えた切替</div>`;
   }else if(sess.mode==='quiz'){
     if(sess.optsFor!==sess.i){sess.opts=makeOpts(d,w);sess.optsFor=sess.i;sess.picked=null}
     const tm=sess.dir==='tm',q=tm?w.t:w.m,qi=tm?w.ti:w.mi,qt=tm?w.tt:w.mt,done=sess.picked!=null;
@@ -584,6 +584,7 @@ const ACT={
   editWord(el){openWordModal(el.dataset.id)},
   addWord(){openWordModal(null)},
   star(el){const d=cur(),w=d.words.find(x=>x.id===el.dataset.id);if(!w)return;w.star=!w.star;saveDeck(d);if(view.filter==='star')render();else{el.classList.toggle('on',w.star);const ch=document.querySelector('.chip[data-f="star"] i');if(ch)ch.textContent=d.words.filter(x=>x.star).length}},
+  toggleMas(el){const d=deckById(sess.deckId),w=curWord();if(!d||!w)return;w.mas=!w.mas;saveDeck(d);el.classList.toggle('on',w.mas);el.setAttribute('aria-pressed',String(w.mas));const s=el.querySelector('span');if(s)s.textContent=w.mas?'覚えた':'覚えていない'},
   starCur(el){const d=deckById(sess.deckId),w=curWord();if(!w)return;w.star=!w.star;saveDeck(d);el.classList.toggle('on',w.star);toast(w.star?'チェックしました':'チェックを外しました')},
   delWord(el){const d=cur(),id=el.dataset.id;confirmDlg('単語を削除','この単語を削除しますか？','削除',()=>{const w=d.words.find(x=>x.id===id);if(w){delAsset(w.ti);delAsset(w.mi)}wf=null;d.words=d.words.filter(w=>w.id!==id);saveDeck(d);render()})},
   bulk(){openBulk()},
@@ -692,7 +693,7 @@ document.addEventListener('keydown',e=>{
   if(view.name!=='study'||!sess)return;
   const tag=e.target.tagName;if(tag==='BUTTON'&&(e.key==='Enter'||e.key===' '))return;
   if(e.key==='Escape'){ACT.quit();return}
-  if(sess.mode==='card'){if(e.key===' '||e.key==='Enter'){e.preventDefault();flip()}else if(e.key==='ArrowRight')cardGo(1,true);else if(e.key==='ArrowLeft')cardGo(-1,true)}
+  if(sess.mode==='card'){if(e.key===' '||e.key==='Enter'){e.preventDefault();flip()}else if(e.key==='ArrowRight')cardGo(1,true);else if(e.key==='ArrowLeft')cardGo(-1,true);else if(e.key==='m'||e.key==='M'){const b=document.querySelector('.tools .mast');if(b)ACT.toggleMas(b)}}
   else if(sess.mode==='quiz'){if(/^[1-4]$/.test(e.key))pick(+e.key-1);else if(e.key==='Enter'&&sess.picked!=null)nextQ()}
   else if(sess.mode==='type'){if(e.key==='Enter'&&sess.typed&&tag!=='INPUT'){e.preventDefault();nextQ()}}
 });
