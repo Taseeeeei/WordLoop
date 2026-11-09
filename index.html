@@ -303,6 +303,18 @@ html.lock,html.lock body{height:100%;overflow:hidden;overscroll-behavior:none}
 .phchg{position:absolute;bottom:6px;right:6px;display:flex;gap:4px;align-items:center;padding:5px 10px;border-radius:999px;background:rgba(4,10,28,.78);font-size:12px;font-weight:600;cursor:pointer;color:#fff}
 .phchg svg.i{width:14px;height:14px}
 
+/* multi-line words */
+.big,.sub,.note,.mean,.wt b,.opt,.fb .corr,.fb .yours,.tbl td{white-space:pre-wrap}
+.fld textarea.grow{resize:none;overflow:hidden;min-height:50px;max-height:45vh;line-height:1.5;display:block}
+.fld textarea.grow.scroll{overflow-y:auto}
+.fld .hintline{display:block;font-size:11px;color:var(--muted);margin:4px 2px 0;opacity:.85}
+/* text alignment on cards and test questions (setting) */
+html.al-left .face .big,html.al-left .face .sub,html.al-left .face .note,html.al-left .qbox .big,html.al-left .qbox .note{align-self:stretch;text-align:left}
+html.al-right .face .big,html.al-right .face .sub,html.al-right .face .note,html.al-right .qbox .big,html.al-right .qbox .note{align-self:stretch;text-align:right}
+html.al-left .face .tbl td,html.al-left .qbox .tbl td{text-align:left}
+html.al-right .face .tbl td,html.al-right .qbox .tbl td{text-align:right}
+.seg button .al{display:inline-block;width:16px;height:12px;vertical-align:-1px;margin-right:6px;background:linear-gradient(currentColor,currentColor) var(--x,0) 0/100% 2px no-repeat,linear-gradient(currentColor,currentColor) var(--x,0) 5px/60% 2px no-repeat,linear-gradient(currentColor,currentColor) var(--x,0) 10px/85% 2px no-repeat}
+
 /* tables */
 :root{--tline:rgba(140,170,230,.38);--tthick:rgba(225,236,255,.92)}
 [data-theme="light"]{--tline:rgba(37,72,150,.28);--tthick:#0E1A3A}

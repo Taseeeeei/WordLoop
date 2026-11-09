@@ -91,9 +91,9 @@ const folderById=id=>S.folders.find(f=>f.id===id);
 const deckFolder=d=>d&&d.folder&&folderById(d.folder)?d.folder:null;
 const decksIn=fid=>S.decks.filter(d=>deckFolder(d)===fid);
 function saveFolders(){S.foldersAt=Date.now();saveLocal();queue('folders')}
-let prefs=Object.assign({red:false,range:'all',order:'rand',dir:'tm',count:'20',tmode:'quiz',cardDir:'tm',theme:'dark',vol:80,sfx:false,remind:false,remindAt:'20:00',lastDeck:null},lsGet(LP)||{});
+let prefs=Object.assign({red:false,range:'all',order:'rand',dir:'tm',count:'20',tmode:'quiz',cardDir:'tm',theme:'dark',align:'center',vol:80,sfx:false,remind:false,remindAt:'20:00',lastDeck:null},lsGet(LP)||{});
 const savePrefs=()=>lsSet(LP,prefs);
-function applyTheme(){const t=prefs.theme==='light'?'light':'dark';document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',t==='light'?'#EEF3FB':'#040A1C')}
+function applyTheme(){const al=['left','right'].includes(prefs.align)?prefs.align:'center';document.documentElement.classList.toggle('al-left',al==='left');document.documentElement.classList.toggle('al-right',al==='right');const t=prefs.theme==='light'?'light':'dark';document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',t==='light'?'#EEF3FB':'#040A1C')}
 applyTheme();
 let lsWarned=false;
 let saveT=null,booted=false;
@@ -240,7 +240,7 @@ function listHTML(d){
 }
 
 /* ---------- study ---------- */
-function sizeCls(t){const n=[...t].length;return n>40?'xs':n>22?'s':n>11?'m':''}
+function sizeCls(t){const lines=String(t).split('\n'),n=Math.max(...lines.map(l=>[...l].length)),k=lines.length,tot=[...t].length;return tot>60||k>=4||n>40?'xs':k===3||n>22||tot>40?'s':k===2||n>11?'m':''}
 function curWord(){const d=deckById(sess.deckId);if(!d)return null;while(sess.i<sess.items.length){const w=d.words.find(x=>x.id===sess.items[sess.i]);if(w)return w;sess.items.splice(sess.i,1)}return null}
 function renderStudy(){
   const d=deckById(sess.deckId),w=d&&curWord();
@@ -267,7 +267,7 @@ function renderStudy(){
       <div class="kbd">1〜4：選択　Enter：次へ</div>`;
   }else{
     const t=sess.typed;
-    const hint=sess.hint&&!t?`<div class="hinttxt">${esc([...w.t].map((ch,i)=>i===0||ch===' '?ch:'_').join(''))}</div>`:'';
+    const hint=sess.hint&&!t?`<div class="hinttxt">${esc([...w.t].map((ch,i)=>i===0||ch===' '||ch==='\n'?ch:'_').join(''))}</div>`:'';
     body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">この意味の単語は？</span>${sideHTML(w.m,w.mi,w.mt)}${hint}${t&&w.n?`<div class="note">${esc(w.n)}</div>`:''}${t?`<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button>`:''}</div>
       ${t?`<div class="fb ${t.ok?'ok':'ng'}">${t.ok?'正解！':'不正解'}${t.ok?'':`<span class="corr">${esc(w.t)}</span>${t.val?`<span class="yours">あなたの答え：${esc(t.val)}</span>`:''}`}</div><button class="btn primary wide nextbtn" data-act="next">次へ</button>`
       :`<form class="typein" id="typeform"><input id="ans" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="単語を入力" enterkeyhint="done"><div class="row"><button type="button" class="btn ghost" data-act="hint">${ICON.bulb}ヒント</button><button type="button" class="btn ghost" data-act="giveup">わからない</button></div><button type="submit" class="btn primary wide">答え合わせ</button></form>`}</div>`;
@@ -313,7 +313,7 @@ function attachSeek(){
   const at=x=>{const r=bar.getBoundingClientRect(),f=Math.max(0,Math.min(1,(x-r.left)/r.width));return Math.min(n-1,Math.max(0,Math.ceil(f*n)-1))};
   const show=i=>{idx=i;const p=(i+1)/n*100;fill.style.width=p+'%';knob.style.left=p+'%';if(cnt)cnt.textContent=`${i+1} / ${n}`;
     const d=deckById(sess.deckId),w=d&&d.words.find(x=>x.id===sess.items[i]),q=w?(sess.dir==='tm'?(w.t||tblSum(w.tt)):(w.m||tblSum(w.mt))):'';
-    tip.innerHTML=`<small>${i+1}</small>${esc(q||'（写真）')}`;
+    tip.innerHTML=`<small>${i+1}</small>${esc((q||'（写真）').replace(/\s*\n\s*/g,' '))}`;
     const sr=s.getBoundingClientRect(),br=bar.getBoundingClientRect(),tw=tip.offsetWidth,kx=br.left-sr.left+br.width*p/100;
     tip.style.left=Math.max(tw/2-sr.left+6,Math.min(innerWidth-sr.left-tw/2-6,kx))+'px'};
   s.addEventListener('pointerdown',e=>{if(sess.lock)return;e.preventDefault();drag=true;s.classList.add('drag');try{s.setPointerCapture(e.pointerId)}catch(_){}show(at(e.clientX))});
@@ -381,6 +381,7 @@ function openSettings(){
   const th=prefs.theme==='light'?'light':'dark';
   openModal(`${mh('設定')}
   <div class="set-sec"><h4>${ICON.palette}色調</h4><div class="seg"><button type="button" class="${th==='dark'?'on':''}" data-act="theme" data-val="dark">${ICON.moon}ダーク</button><button type="button" class="${th==='light'?'on':''}" data-act="theme" data-val="light">${ICON.sun}ホワイト</button></div></div>
+  <div class="set-sec"><h4>${ICON.cards}カードの文字の配置</h4><div class="seg">${[['left','左詰め','0'],['center','中央','50%'],['right','右詰め','100%']].map(([v,l,x])=>`<button type="button" class="${(prefs.align||'center')===v?'on':''}" data-act="align" data-val="${v}"><i class="al" style="--x:${x}"></i>${l}</button>`).join('')}</div><p class="muted">カードとテストの問題に表示する文字の位置です。</p></div>
   <div class="set-sec"><h4>${ICON.sound}音量</h4>
     <div class="volrow">${ICON.sound}<input type="range" id="vol" min="0" max="100" step="5" value="${+prefs.vol||0}" aria-label="音量"><b id="volv">${+prefs.vol||0}</b></div>
     <div class="toggle-row"><span>効果音<small>テストで正解・不正解のときに音を鳴らす</small></span><label class="switch"><input type="checkbox" id="sfx" ${prefs.sfx?'checked':''}><span></span></label></div>
@@ -441,7 +442,7 @@ function render(){
 
 /* ---------- modals ---------- */
 let modalCb=null,modalTimer=null;
-function openModal(html){clearTimeout(modalTimer);const m=$('#modal');m.innerHTML=`<div class="scrim" data-act="closeModal"></div><div class="sheet" role="dialog" aria-modal="true">${html}</div>`;m.classList.add('open');
+function openModal(html){setTimeout(growAll,30);clearTimeout(modalTimer);const m=$('#modal');m.innerHTML=`<div class="scrim" data-act="closeModal"></div><div class="sheet" role="dialog" aria-modal="true">${html}</div>`;m.classList.add('open');
   requestAnimationFrame(()=>requestAnimationFrame(()=>m.classList.add('show')));const f=m.querySelector('[autofocus]');if(f)setTimeout(()=>f.focus(),60)}
 function closeModal(){const m=$('#modal');m.classList.remove('show');modalTimer=setTimeout(()=>{m.classList.remove('open');m.innerHTML=''},230)}
 const mh=t=>`<div class="mh"><h3>${t}</h3><button type="button" class="icon" data-act="closeModal" aria-label="閉じる">${ICON.x}</button></div>`;
@@ -492,11 +493,16 @@ function phSlot(side){const s=wf[side],u=s.pending?s.pending.preview:(!s.removed
   if(u)return`<div class="ph"><img src="${esc(u)}" alt=""><button type="button" class="phx" data-act="rmPhoto" data-side="${side}" aria-label="写真を削除">${ICON.x}</button><label class="phchg">${ICON.camera}変更${inp}</label></div>`;
   return`<label class="addph">${ICON.camera}<span>写真を追加</span><small>選択・貼り付け・ドロップ</small>${inp}</label>`}
 function refreshPh(side){const el=$('#ph-'+side);if(el&&wf)el.innerHTML=phSlot(side)}
+function grow(el){el.style.height='auto';const max=innerHeight*.45;el.style.height=Math.min(el.scrollHeight+2,max)+'px';el.classList.toggle('scroll',el.scrollHeight+2>max)}
+function growAll(){document.querySelectorAll('textarea.grow').forEach(grow)}
+document.addEventListener('input',e=>{if(e.target.classList&&e.target.classList.contains('grow'))grow(e.target)});
+// Ctrl/⌘ + Enter saves the word form (Enter alone adds a new line)
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&e.target.closest&&e.target.closest('#wordform')){e.preventDefault();const b=document.querySelector('#wordform .btn.primary[type=submit]');if(b)b.click()}});
 function openWordModal(id){const d=cur(),w=id?d.words.find(x=>x.id===id):null;
   wf={t:wfSide(w&&w.ti,w&&w.tt),m:wfSide(w&&w.mi,w&&w.mt),busy:false};
   openModal(`<form id="wordform" data-id="${id||''}" novalidate>${mh(w?'単語を編集':'単語を追加')}
-  <div class="fld"><span>表：単語・問題</span><input name="t" value="${esc(w?w.t:'')}" autofocus autocomplete="off" autocapitalize="off" spellcheck="false"><div class="phslot" id="ph-t" data-side="t">${phSlot('t')}</div><div class="tblslot" id="tb-t">${tblSlot('t')}</div></div>
-  <div class="fld"><span>裏：意味・答え</span><input name="m" value="${esc(w?w.m:'')}" autocomplete="off"><div class="phslot" id="ph-m" data-side="m">${phSlot('m')}</div><div class="tblslot" id="tb-m">${tblSlot('m')}</div></div>
+  <div class="fld"><span>表：単語・問題</span><textarea name="t" class="grow" rows="1" autofocus autocomplete="off" autocapitalize="off" spellcheck="false">${esc(w?w.t:'')}</textarea><div class="phslot" id="ph-t" data-side="t">${phSlot('t')}</div><div class="tblslot" id="tb-t">${tblSlot('t')}</div></div>
+  <div class="fld"><span>裏：意味・答え</span><textarea name="m" class="grow" rows="1" autocomplete="off">${esc(w?w.m:'')}</textarea><span class="hintline">改行もそのままカードに表示されます（保存は「保存」ボタン、PCは Ctrl＋Enter でも可）</span><div class="phslot" id="ph-m" data-side="m">${phSlot('m')}</div><div class="tblslot" id="tb-m">${tblSlot('m')}</div></div>
   <label class="fld"><span>メモ・例文<i>任意 ・ カードの裏に表示</i></span><textarea name="n" rows="2">${esc(w?w.n:'')}</textarea></label>
   ${w?`<div class="toggle-row">覚えた<label class="switch"><input type="checkbox" name="mas" ${w.mas?'checked':''}><span></span></label></div><div class="wstat">正解 ${w.c}回 ・ 不正解 ${w.w}回</div>`:''}
   <div class="mf">${w?`<button type="button" class="btn ghost danger" data-act="delWord" data-id="${w.id}">${ICON.trash}削除</button>`:`<button type="submit" class="btn ghost" name="more" value="1">続けて追加</button>`}<button type="submit" class="btn primary">保存</button></div></form>`)}
@@ -605,6 +611,7 @@ const ACT={
   closeModal(){modalCb=null;wf=null;closeModal()},
   settings(){refreshNativePerm().then(()=>{const n=$('#remindNote');if(n)n.innerHTML=remindNote()});openSettings()},
   exportBackup(){exportBackup()},
+  align(el){prefs.align=el.dataset.val;savePrefs();applyTheme();el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))},
   theme(el){prefs.theme=el.dataset.val;savePrefs();applyTheme();el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))},
   testSound(){playSfx(true,true);setTimeout(()=>speak('Hello'),450)},
   resume(){const d=deckById(prefs.lastDeck)||S.decks[0];if(d)go({name:'deck',id:d.id,filter:'all',q:''})},
@@ -643,7 +650,7 @@ async function storePhoto(p){if(p.blob){const id='p'+rid();await idbSet('photos'
 function delAsset(ref){if(!ref||!ref.p)return;const id=ref.p;setTimeout(()=>{try{if(S.decks.some(d=>d.words.some(w=>(w.ti&&w.ti.p===id)||(w.mi&&w.mi.p===id))))return;idbDel('photos',id).catch(()=>{});if(photoURL[id]){URL.revokeObjectURL(photoURL[id]);delete photoURL[id]}}catch(e){}},0)}
 async function saveWordForm(f,fd,sub){
   if(!wf||wf.busy)return;const d=cur();if(!d)return;
-  const t=String(fd.get('t')||'').trim(),m=String(fd.get('m')||'').trim(),n=String(fd.get('n')||'').trim();
+  const nl=v=>String(v||'').replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').trim(),t=nl(fd.get('t')),m=nl(fd.get('m')),n=String(fd.get('n')||'').trim();
   const has=s=>!!(wf[s].pending||(!wf[s].removed&&wf[s].ref)||tblHas(wf[s].table));
   if(!(t||has('t'))||!(m||has('m'))){toast('表と裏に、それぞれ文字・写真・表のどれかを入れてください');return}
   const cur0=wf;cur0.busy=true;const btns=[...f.querySelectorAll('button[type=submit]')],pb=f.querySelector('.btn.primary[type=submit]'),lbl=pb.textContent;
@@ -656,7 +663,7 @@ async function saveWordForm(f,fd,sub){
   catch(err){cur0.busy=false;btns.forEach(b=>b.disabled=false);pb.textContent=lbl;toast('写真を保存できませんでした。もう一度お試しください');return}
   if(f.dataset.id){const w=d.words.find(x=>x.id===f.dataset.id);if(w){w.t=t;w.m=m;w.n=n;w.mas=fd.get('mas')==='on';w.ti=refs.t;w.mi=refs.m;w.tt=trimTbl(cur0.t.table);w.mt=trimTbl(cur0.m.table)}saveDeck(d);old.forEach(delAsset);wf=null;closeModal();render();return}
   const dup=!!t&&d.words.some(w=>norm(w.t)===norm(t));d.words.push(cleanWord({id:'w'+rid(),t,m,n,ti:refs.t,mi:refs.m,tt:trimTbl(cur0.t.table),mt:trimTbl(cur0.m.table)}));saveDeck(d);render();
-  if(sub&&sub.value==='1'&&wf===cur0){f.reset();wf={t:wfSide(null),m:wfSide(null),busy:false};refreshPh('t');refreshPh('m');refreshTb('t');refreshTb('m');btns.forEach(b=>b.disabled=false);pb.textContent=lbl;f.querySelector('[name=t]').focus();toast(dup?'追加しました（同じ単語が既にあります）':'追加しました')}
+  if(sub&&sub.value==='1'&&wf===cur0){f.reset();setTimeout(growAll,0);wf={t:wfSide(null),m:wfSide(null),busy:false};refreshPh('t');refreshPh('m');refreshTb('t');refreshTb('m');btns.forEach(b=>b.disabled=false);pb.textContent=lbl;f.querySelector('[name=t]').focus();toast(dup?'追加しました（同じ単語が既にあります）':'追加しました')}
   else{wf=null;closeModal();if(dup)toast('同じ単語が既に登録されています')}
 }
 async function compressImg(file,max,q){
