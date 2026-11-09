@@ -59,15 +59,17 @@ const TMAX_R=20,TMAX_C=8;
 function cleanTable(t){if(!t||typeof t!=='object')return null;const ci=(v,lo,hi,d)=>{v=parseInt(v,10);return isNaN(v)?d:Math.max(lo,Math.min(hi,v))};
   const r=ci(t.r,1,TMAX_R,1),c=ci(t.c,1,TMAX_C,1),src=Array.isArray(t.cells)?t.cells:[];
   const cells=[];for(let i=0;i<r;i++){const row=Array.isArray(src[i])?src[i]:[];const out=[];for(let j=0;j<c;j++)out.push(String(row[j]==null?'':row[j]).slice(0,200));cells.push(out)}
-  let th=t.th&&typeof t.th==='object'?t.th:{};const k=th.k==='h'||th.k==='v'||th.k==='n'?th.k:'h';let i=ci(th.i,1,99,1);
-  if(k==='h'&&r<2||k==='v'&&c<2||k==='n')th={k:'n',i:0};else{const max=k==='h'?r-1:c-1;th={k,i:Math.min(i,max)}}
+  const o=t.th&&typeof t.th==='object'?t.th:{};let hh,vv;
+  if('h' in o||'v' in o){hh=ci(o.h,0,99,0);vv=ci(o.v,0,99,0)}
+  else if(o.k==='h'){hh=ci(o.i,0,99,1);vv=0}else if(o.k==='v'){hh=0;vv=ci(o.i,0,99,1)}else if(o.k==='n'){hh=0;vv=0}else{hh=1;vv=0}
+  const th={h:hh<=r-1?hh:0,v:vv<=c-1?vv:0};
   return{r,c,cells,th}}
 function trimTbl(t){if(!tblHas(t))return null;let r=t.r,c=t.c;const e=x=>!String(x).trim();while(r>1&&t.cells[r-1].every(e))r--;while(c>1&&t.cells.slice(0,r).every(row=>e(row[c-1])))c--;return cleanTable({r,c,cells:t.cells.slice(0,r).map(row=>row.slice(0,c)),th:t.th})}
 const tblHas=t=>!!t&&t.cells.some(r=>r.some(x=>String(x).trim()));
 const tblText=(t,sep)=>t?t.cells.flat().map(x=>String(x).trim()).filter(Boolean).join(sep||' / '):'';
 const tblSum=t=>{const s=tblText(t);return s.length>60?s.slice(0,60)+'…':s};
 function tableHTML(t){if(!t)return'';const fs=Math.max(10,Math.min(20,Math.round(24-t.r*.7-t.c*1.3)));let o=`<table class="tbl" style="font-size:${fs}px">`;
-  for(let i=0;i<t.r;i++){o+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.k==='h'&&t.th.i===i+1?'tb ':'')+(t.th.k==='v'&&t.th.i===j+1?'tr':'');o+=`<td class="${cl}">${esc(t.cells[i][j])}</td>`}o+='</tr>'}return o+'</table>'}
+  for(let i=0;i<t.r;i++){o+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.h===i+1?'tb ':'')+(t.th.v===j+1?'tr':'');o+=`<td class="${cl}">${esc(t.cells[i][j])}</td>`}o+='</tr>'}return o+'</table>'}
 const speechOf=(text,t)=>text||tblText(t,'、');
 function cleanWord(w){if(!w||typeof w!=='object')w={};return{id:safeId(w.id,'w'),t:String(w.t||''),m:String(w.m||''),n:String(w.n||''),mas:!!w.mas,c:+w.c||0,w:+w.w||0,star:!!w.star,lt:+w.lt||0,ti:cleanRef(w.ti),mi:cleanRef(w.mi),tt:cleanTable(w.tt),mt:cleanTable(w.mt)}}
 function cleanDeck(d){if(!d||typeof d!=='object')return null;return{id:safeId(d.id,'d'),name:String(d.name||'単語帳'),color:fixCol(d.color),createdAt:+d.createdAt||Date.now(),updatedAt:+d.updatedAt||0,words:Array.isArray(d.words)?d.words.map(cleanWord):[],folder:typeof d.folder==='string'&&SAFE_ID.test(d.folder)?d.folder:null}}
@@ -411,7 +413,11 @@ async function exportBackup(){
     const t=new Date(),name=`WordLoop-backup-${t.getFullYear()}${String(t.getMonth()+1).padStart(2,'0')}${String(t.getDate()).padStart(2,'0')}.json`;
     if(NATIVE&&P.Filesystem&&P.Share){const r=await P.Filesystem.writeFile({path:name,data,directory:'CACHE',encoding:'utf8'});
       try{await P.Share.share({title:'WordLoopのバックアップ',files:[r.uri],dialogTitle:'保存先・送信先を選んでください'})}catch(e){}}
-    else{const url=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),8000);toast('バックアップを書き出しました')}
+    else{const blob=new Blob([data],{type:'application/json'});
+      const mobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform||''));
+      if(mobile&&navigator.canShare&&typeof File==='function'){const file=new File([blob],name,{type:'application/json'});
+        if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'WordLoopのバックアップ'});toast('「ファイルに保存」などで保存してください');return}catch(e){if(e&&e.name==='AbortError')return}}}
+      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),8000);toast('バックアップを書き出しました')}
   }catch(e){toast('書き出しに失敗しました')}}
 async function importBackup(file){
   if(file.size>300*1024*1024){toast('ファイルが大きすぎます（300MBまで）');return}
@@ -465,20 +471,21 @@ function openAddToFolder(fid){const f=folderById(fid);if(!f)return;const others=
 function afterDeckGone(d){if(view.name==='deck'&&view.id===d.id){const f=deckFolder(d);go(f?{name:'folder',id:f}:{name:'home'})}else render()}
 let wf=null;
 const wfSide=(ref,tbl)=>({ref:ref||null,pending:null,removed:false,table:tbl?cleanTable(JSON.parse(JSON.stringify(tbl))):null});
-function thickOpts(t){const o=[];for(let i=1;i<t.r;i++)o.push([`h:${i}`,`横線：${i}行目と${i+1}行目の間`]);for(let j=1;j<t.c;j++)o.push([`v:${j}`,`縦線：${j}列目と${j+1}列目の間`]);o.push(['n:0','なし']);return o}
+function thickOpts(n,unit){const o=[['0','なし']];for(let i=1;i<n;i++)o.push([String(i),`${i}${unit}目と${i+1}${unit}目の間`]);return o}
 function tblSlot(side){const t=wf&&wf[side].table;
   if(!t)return`<button type="button" class="addph" data-act="addTable" data-side="${side}">${ICON.table}<span>表を追加</span><small>行と列を指定してマスに入力</small></button>`;
-  const cur=`${t.th.k}:${t.th.i}`;let g='';
-  for(let i=0;i<t.r;i++){g+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.k==='h'&&t.th.i===i+1?'tb ':'')+(t.th.k==='v'&&t.th.i===j+1?'tr':'');g+=`<td class="${cl}"><input class="tbcell" data-side="${side}" data-r="${i}" data-c="${j}" value="${esc(t.cells[i][j])}" maxlength="200" autocomplete="off" aria-label="${i+1}行${j+1}列"></td>`}g+='</tr>'}
+  let g='';
+  for(let i=0;i<t.r;i++){g+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.h===i+1?'tb ':'')+(t.th.v===j+1?'tr':'');g+=`<td class="${cl}"><input class="tbcell" data-side="${side}" data-r="${i}" data-c="${j}" value="${esc(t.cells[i][j])}" maxlength="200" autocomplete="off" aria-label="${i+1}行${j+1}列"></td>`}g+='</tr>'}
   return`<div class="tbed"><div class="tbbar">行<span class="stp"><button type="button" data-act="tbStep" data-side="${side}" data-k="r" data-d="-1" ${t.r<=1?'disabled':''} aria-label="行を減らす">−</button><b>${t.r}</b><button type="button" data-act="tbStep" data-side="${side}" data-k="r" data-d="1" ${t.r>=TMAX_R?'disabled':''} aria-label="行を増やす">＋</button></span>
     列<span class="stp"><button type="button" data-act="tbStep" data-side="${side}" data-k="c" data-d="-1" ${t.c<=1?'disabled':''} aria-label="列を減らす">−</button><b>${t.c}</b><button type="button" data-act="tbStep" data-side="${side}" data-k="c" data-d="1" ${t.c>=TMAX_C?'disabled':''} aria-label="列を増やす">＋</button></span>
     <button type="button" class="rm" data-act="rmTable" data-side="${side}">${ICON.trash}表を削除</button></div>
-    <label class="tbthick">太線<select data-tbthick="${side}">${thickOpts(t).map(([v,l])=>`<option value="${v}" ${v===cur?'selected':''}>${l}</option>`).join('')}</select></label>
+    <label class="tbthick">横の太線<select data-tbthick="${side}" data-dir="h" ${t.r<2?'disabled':''}>${thickOpts(t.r,'行').map(([v,l])=>`<option value="${v}" ${+v===t.th.h?'selected':''}>${l}</option>`).join('')}</select></label>
+    <label class="tbthick">縦の太線<select data-tbthick="${side}" data-dir="v" ${t.c<2?'disabled':''}>${thickOpts(t.c,'列').map(([v,l])=>`<option value="${v}" ${+v===t.th.v?'selected':''}>${l}</option>`).join('')}</select></label>
     <div class="tbwrap"><table class="tbl tbl-edit">${g}</table></div></div>`}
 function refreshTb(side){const el=$('#tb-'+side);if(el&&wf)el.innerHTML=tblSlot(side)}
 function resizeTbl(t,r,c){const cells=[];for(let i=0;i<r;i++){const row=[];for(let j=0;j<c;j++)row.push(t.cells[i]&&t.cells[i][j]!=null?t.cells[i][j]:'');cells.push(row)}return cleanTable({r,c,cells,th:t.th})}
 document.addEventListener('input',e=>{const x=e.target;if(x.classList&&x.classList.contains('tbcell')&&wf){const t=wf[x.dataset.side]&&wf[x.dataset.side].table;if(t)t.cells[+x.dataset.r][+x.dataset.c]=x.value.slice(0,200)}});
-document.addEventListener('change',e=>{const x=e.target;if(x.dataset&&x.dataset.tbthick&&wf){const s=x.dataset.tbthick,t=wf[s]&&wf[s].table;if(!t)return;const[k,i]=x.value.split(':');wf[s].table=cleanTable({...t,th:{k,i:+i}});refreshTb(s)}});
+document.addEventListener('change',e=>{const x=e.target;if(x.dataset&&x.dataset.tbthick&&wf){const s=x.dataset.tbthick,t=wf[s]&&wf[s].table;if(!t)return;const th={...t.th};th[x.dataset.dir==='v'?'v':'h']=+x.value||0;wf[s].table=cleanTable({...t,th});refreshTb(s)}});
 document.addEventListener('keydown',e=>{const x=e.target;if(e.key==='Enter'&&x.classList&&x.classList.contains('tbcell')){e.preventDefault();const t=wf&&wf[x.dataset.side]&&wf[x.dataset.side].table;if(!t)return;let r=+x.dataset.r,c=+x.dataset.c+1;if(c>=t.c){c=0;r++}if(r>=t.r)return;const n=document.querySelector(`.tbcell[data-side="${x.dataset.side}"][data-r="${r}"][data-c="${c}"]`);if(n)n.focus()}});
 function phSlot(side){const s=wf[side],u=s.pending?s.pending.preview:(!s.removed&&s.ref?src(s.ref):'');
   const inp=`<input type="file" accept="image/*" data-side="${side}" hidden>`;
@@ -601,7 +608,7 @@ const ACT={
   theme(el){prefs.theme=el.dataset.val;savePrefs();applyTheme();el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))},
   testSound(){playSfx(true,true);setTimeout(()=>speak('Hello'),450)},
   resume(){const d=deckById(prefs.lastDeck)||S.decks[0];if(d)go({name:'deck',id:d.id,filter:'all',q:''})},
-  addTable(el){const s=el.dataset.side;if(!wf||!wf[s])return;wf[s].table=cleanTable({r:3,c:2,cells:[],th:{k:'h',i:1}});refreshTb(s);const f=document.querySelector(`.tbcell[data-side="${s}"]`);if(f)f.focus()},
+  addTable(el){const s=el.dataset.side;if(!wf||!wf[s])return;wf[s].table=cleanTable({r:3,c:2,cells:[],th:{h:1,v:0}});refreshTb(s);const f=document.querySelector(`.tbcell[data-side="${s}"]`);if(f)f.focus()},
   tbStep(el){const s=el.dataset.side,t=wf&&wf[s]&&wf[s].table;if(!t)return;const d=+el.dataset.d;let r=t.r,c=t.c;if(el.dataset.k==='r')r=Math.max(1,Math.min(TMAX_R,r+d));else c=Math.max(1,Math.min(TMAX_C,c+d));wf[s].table=resizeTbl(t,r,c);refreshTb(s)},
   rmTable(el){const s=el.dataset.side;if(!wf||!wf[s])return;wf[s].table=null;refreshTb(s)},
   rmPhoto(el){const s=wf&&wf[el.dataset.side];if(!s)return;if(s.pending&&s.pending.blob)URL.revokeObjectURL(s.pending.preview);s.pending=null;s.removed=true;refreshPh(el.dataset.side)},
