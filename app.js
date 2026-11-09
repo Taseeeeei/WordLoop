@@ -217,9 +217,9 @@ function renderDeck(){
       <div class="ptxt"><b>覚えた ${s.m} / ${s.t}語</b><span>未習得 ${s.t-s.m} ・ チェック ${cnt('star')} ・ 苦手 ${cnt('weak')}</span></div></section>
     <section class="modes">
       <button class="mode" data-act="startCard"><span class="tile">${ICON.cards}</span><b>カード</b><small>めくって覚える</small></button>
-      <button class="mode" data-act="setup"><span class="tile">${ICON.quiz}</span><b>テスト</b><small>4択・スペル</small></button>
+      <button class="mode" data-act="setup"><span class="tile">${ICON.quiz}</span><b>テスト</b><small>4択・入力</small></button>
     </section>
-    <div class="listbar"><label class="search">${ICON.search}<input id="q" type="search" placeholder="単語・意味を検索" value="${esc(view.q||'')}" autocomplete="off"></label>
+    <div class="listbar"><label class="search">${ICON.search}<input id="q" type="search" placeholder="表・裏・メモを検索" value="${esc(view.q||'')}" autocomplete="off"></label>
       <button class="toggle ${prefs.red?'on':''}" data-act="red" aria-pressed="${prefs.red}">赤シート</button></div>
     <div class="chips">${FILTERS.map(([k,l],i)=>`<button class="chip ${f===k?'on':''}" data-act="filter" data-f="${k}">${l}<i>${cnt(k)}</i></button>${i===0?`<button class="chip rnd ${f==='rand'?'on':''}" data-act="filter" data-f="rand">${ICON.shuffle}ランダム並び替え</button>`:''}`).join('')}</div>
     <div id="wordlist">${listHTML(d)}</div>
@@ -236,7 +236,7 @@ function listHTML(d){
   const list=visibleWords(d),rnd=view.filter==='rand';
   if(!d.words.length)return`<div class="words"><div class="nolist">まだ単語がありません。<br>下のボタンから追加しましょう。<br>Excelやスプレッドシートからの貼り付けもOK。</div></div>`;
   if(!list.length)return`<div class="words"><div class="nolist">該当する単語はありません</div></div>`;
-  return`${rnd?`<div class="sorthint">${ICON.shuffle}ランダムに表示中 ・ もう一度押すと再シャッフル（保存された順番は変わりません）</div>`:list.length>1?`<div class="sorthint">${ICON.grip}をドラッグ（スマホは行を長押し）で並び替え</div>`:''}<ul class="words ${prefs.red?'redsheet':''}" id="wl">${list.map(w=>`<li class="word" data-act="editWord" data-id="${w.id}">${rnd?'':`<span class="grip" data-act="noop" aria-label="並び替え">${ICON.grip}</span>`}<span class="dot ${w.mas?'done':weak(w)?'weak':''}"></span><div class="wt"><b>${w.t?esc(w.t):tblHas(w.tt)?`<span class="muted-lbl">${esc(tblSum(w.tt))}</span>`:'<span class="muted-lbl">（写真）</span>'}${tblHas(w.tt)||tblHas(w.mt)?'<span class="tbtag">表</span>':''}</b><span class="mean" data-act="reveal">${w.m?esc(w.m):tblHas(w.mt)?esc(tblSum(w.mt)):'（写真）'}</span>${w.n?`<small>${esc(w.n)}</small>`:''}</div>${(w.ti||w.mi)?`<img class="thumb ${w.ti?'':'mth'}" src="${esc(src(w.ti||w.mi))}" alt="" loading="lazy">`:''}<button class="star ${w.star?'on':''}" data-act="star" data-id="${w.id}" aria-label="チェック">${ICON.star}</button></li>`).join('')}</ul>`;
+  return`${rnd?`<div class="sorthint">${ICON.shuffle}ランダムに表示中 ・ もう一度押すと再シャッフル（保存された順番は変わりません）</div>`:list.length>1?`<div class="sorthint">${ICON.grip}をドラッグ（スマホは行を長押し）で並び替え</div>`:''}<ul class="words ${prefs.red?'redsheet':''}" id="wl">${list.map(w=>`<li class="word" data-act="editWord" data-id="${w.id}">${rnd?'':`<span class="grip" data-act="noop" aria-label="並び替え">${ICON.grip}</span>`}<span class="dot ${w.mas?'done':weak(w)?'weak':''}"></span><div class="wt"><b>${w.t?esc(w.t):tblHas(w.tt)?`<span class="muted-lbl">${esc(tblSum(w.tt))}</span>`:'<span class="muted-lbl">（写真）</span>'}${tblHas(w.tt)||tblHas(w.mt)?'<span class="tbtag">テーブル</span>':''}</b><span class="mean" data-act="reveal">${w.m?esc(w.m):tblHas(w.mt)?esc(tblSum(w.mt)):'（写真）'}</span>${w.n?`<small>${esc(w.n)}</small>`:''}</div>${(w.ti||w.mi)?`<img class="thumb ${w.ti?'':'mth'}" src="${esc(src(w.ti||w.mi))}" alt="" loading="lazy">`:''}<button class="star ${w.star?'on':''}" data-act="star" data-id="${w.id}" aria-label="チェック">${ICON.star}</button></li>`).join('')}</ul>`;
 }
 
 /* ---------- study ---------- */
@@ -246,31 +246,31 @@ function renderStudy(){
   const d=deckById(sess.deckId),w=d&&curWord();
   if(!w){if(sess.mode==='card'||!sess.res.length){view=Object.assign({},sess.back,{name:'deck',id:sess.deckId});return renderDeck()}view={name:'result',id:sess.deckId};return renderResult()}
   const n=sess.items.length,pct=Math.round((sess.i+(sess.mode==='card'?1:0))/n*100);
-  const bar=sess.mode==='card'?`<div class="seek" id="seek" role="slider" aria-label="単語の位置" aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${sess.i+1}" title="タップ・ドラッグでその位置の単語へ移動"><div class="pbar"><i style="width:${pct}%"></i></div><span class="knob" style="left:${pct}%"></span><span class="seekTip"></span></div>`:`<div class="pbar"><i style="width:${pct}%"></i></div>`;
+  const bar=sess.mode==='card'?`<div class="seek" id="seek" role="slider" aria-label="カードの位置" aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${sess.i+1}" title="タップ・ドラッグでその位置のカードへ移動"><div class="pbar"><i style="width:${pct}%"></i></div><span class="knob" style="left:${pct}%"></span><span class="seekTip"></span></div>`:`<div class="pbar"><i style="width:${pct}%"></i></div>`;
   const head=`<header class="top"><button class="icon" data-act="quit" aria-label="終了">${ICON.x}</button>${bar}<span class="cnt">${sess.i+1} / ${n}</span></header>`;
   let body='';
   if(sess.mode==='card'){
     const tm=sess.dir==='tm',q=tm?w.t:w.m,a=tm?w.m:w.t,qi=tm?w.ti:w.mi,ai=tm?w.mi:w.ti,qt=tm?w.tt:w.mt,at=tm?w.mt:w.tt,last=sess.i===n-1,enter=sess.enter||'';sess.enter='';
     body=`<div class="stage"><div class="card3d ${enter}" id="card" style="--c:${d.color}"><div class="flip ${sess.flipped?'on':''}" id="flip">
-      <div class="face"><span class="hint">${tm?'単語':'意味'}</span>${sideHTML(q,qi,qt)}<span class="tap">タップで裏返す ・ 左右にスライドで移動</span></div>
-      <div class="face back"><span class="hint">${tm?'意味':'単語'}</span>${sideHTML(a,ai,at)}${q?`<div class="sub">${esc(q)}</div>`:''}${w.n?`<div class="note">${esc(w.n)}</div>`:''}</div>
+      <div class="face"><span class="hint">${tm?'表':'裏'}</span>${sideHTML(q,qi,qt)}<span class="tap">タップで裏返す ・ 左右にスライドで移動</span></div>
+      <div class="face back"><span class="hint">${tm?'裏':'表'}</span>${sideHTML(a,ai,at)}${q?`<div class="sub">${esc(q)}</div>`:''}${w.n?`<div class="note">${esc(w.n)}</div>`:''}</div>
       </div></div>
       <div class="tools"><button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button><button class="icon" data-act="swapDir" aria-label="表と裏を入れ替え" title="表と裏を入れ替え">${ICON.swap}</button><button class="star ${w.star?'on':''}" data-act="starCur" aria-label="チェック">${ICON.star}</button></div></div>
       <div class="nav2"><button class="btn ghost" data-act="cardPrev" ${sess.i===0?'disabled':''}>${ICON.back}前へ</button><button class="btn ${last?'primary':'ghost'}" data-act="cardNext">${last?'完了':'次へ'}${last?ICON.check:ICON.fwd}</button></div>
-      <div class="kbd">クリック・Space：裏返す　← →：前・次の単語</div>`;
+      <div class="kbd">クリック・Space：裏返す　← →：前・次のカード</div>`;
   }else if(sess.mode==='quiz'){
     if(sess.optsFor!==sess.i){sess.opts=makeOpts(d,w);sess.optsFor=sess.i;sess.picked=null}
     const tm=sess.dir==='tm',q=tm?w.t:w.m,qi=tm?w.ti:w.mi,qt=tm?w.tt:w.mt,done=sess.picked!=null;
-    body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">${tm?'意味を選んでください':'単語を選んでください'}</span>${sideHTML(q,qi,qt)}${done&&w.n?`<div class="note">${esc(w.n)}</div>`:''}<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button></div>
+    body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">正しい答えを選んでください</span>${sideHTML(q,qi,qt)}${done&&w.n?`<div class="note">${esc(w.n)}</div>`:''}<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button></div>
       <div class="opts">${sess.opts.map((o,i)=>{let c='';if(done){if(o.id===w.id)c='right';else if(i===sess.picked)c='wrong';else c='dim'}return`<button class="opt ${c}" data-act="pick" data-i="${i}"><span class="num">${i+1}</span>${o.img?`<img class="othumb" src="${esc(src(o.img))}" alt="">`:''}${esc(o.text)}</button>`}).join('')}</div>
       ${done&&sess.opts[sess.picked].id!==w.id?`<button class="btn primary wide nextbtn" data-act="next">次へ</button>`:''}</div>
       <div class="kbd">1〜4：選択　Enter：次へ</div>`;
   }else{
     const t=sess.typed;
     const hint=sess.hint&&!t?`<div class="hinttxt">${esc([...w.t].map((ch,i)=>i===0||ch===' '||ch==='\n'?ch:'_').join(''))}</div>`:'';
-    body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">この意味の単語は？</span>${sideHTML(w.m,w.mi,w.mt)}${hint}${t&&w.n?`<div class="note">${esc(w.n)}</div>`:''}${t?`<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button>`:''}</div>
+    body=`<div class="stage" style="justify-content:flex-start;padding-top:10px"><div class="qbox"><span class="hint">表の内容を入力してください</span>${sideHTML(w.m,w.mi,w.mt)}${hint}${t&&w.n?`<div class="note">${esc(w.n)}</div>`:''}${t?`<button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button>`:''}</div>
       ${t?`<div class="fb ${t.ok?'ok':'ng'}">${t.ok?'正解！':'不正解'}${t.ok?'':`<span class="corr">${esc(w.t)}</span>${t.val?`<span class="yours">あなたの答え：${esc(t.val)}</span>`:''}`}</div><button class="btn primary wide nextbtn" data-act="next">次へ</button>`
-      :`<form class="typein" id="typeform"><input id="ans" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="単語を入力" enterkeyhint="done"><div class="row"><button type="button" class="btn ghost" data-act="hint">${ICON.bulb}ヒント</button><button type="button" class="btn ghost" data-act="giveup">わからない</button></div><button type="submit" class="btn primary wide">答え合わせ</button></form>`}</div>`;
+      :`<form class="typein" id="typeform"><input id="ans" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="答えを入力" enterkeyhint="done"><div class="row"><button type="button" class="btn ghost" data-act="hint">${ICON.bulb}ヒント</button><button type="button" class="btn ghost" data-act="giveup">わからない</button></div><button type="submit" class="btn primary wide">答え合わせ</button></form>`}</div>`;
   }
   return head+`<main class="sw">${body}</main>`;
 }
@@ -278,7 +278,7 @@ function sideHTML(text,ref,tbl){tbl=tblHas(tbl)?tbl:null;return(ref?`<img class=
 function makeOpts(d,w){
   const key=sess.dir==='tm'?'m':'t',k=x=>x[key]||(tblHas(x[key+'t'])?'#t'+tblText(x[key+'t']):'#'+x.id),seen=new Set([k(w)]),picks=[];
   for(const o of shuffle(d.words)){if(o.id===w.id||seen.has(k(o)))continue;seen.add(k(o));picks.push(o);if(picks.length===3)break}
-  return shuffle([w,...picks]).map(x=>({id:x.id,text:x[key]||(tblHas(x[key+'t'])?'（表）'+tblSum(x[key+'t']):''),img:x[key+'i']}));
+  return shuffle([w,...picks]).map(x=>({id:x.id,text:x[key]||(tblHas(x[key+'t'])?'（テーブル）'+tblSum(x[key+'t']):''),img:x[key+'i']}));
 }
 function record(ok){
   const d=deckById(sess.deckId),w=curWord();if(!w)return;
@@ -290,7 +290,7 @@ function nextQ(){clearTimeout(sess.timer);sess.i++;sess.flipped=false;sess.picke
 function flip(){const f=$('#flip');if(!f)return;sess.flipped=!sess.flipped;f.classList.toggle('on',sess.flipped)}
 function cardGo(delta,swipe){if(!sess||sess.lock)return;const ni=sess.i+delta,c=$('#card');
   if(ni<0||ni>=sess.items.length){if(ni>=sess.items.length&&!swipe){go(sess.back);return}
-    if(c){c.style.transition='transform .2s';c.style.transform='';c.classList.remove('bump','in-r','in-l');void c.offsetWidth;c.classList.add('bump')}toast(ni<0?'最初の単語です':'最後の単語です');return}
+    if(c){c.style.transition='transform .2s';c.style.transform='';c.classList.remove('bump','in-r','in-l');void c.offsetWidth;c.classList.add('bump')}toast(ni<0?'最初のカードです':'最後のカードです');return}
   sess.lock=true;
   if(c){c.style.transition='transform .2s cubic-bezier(.4,0,1,1)';c.style.transform=`translateX(${delta>0?-110:110}%)`}
   setTimeout(()=>{if(delta>0)bumpToday();sess.i=ni;sess.flipped=false;sess.lock=false;sess.enter=delta>0?'in-r':'in-l';render()},170)}
@@ -474,12 +474,12 @@ let wf=null;
 const wfSide=(ref,tbl)=>({ref:ref||null,pending:null,removed:false,table:tbl?cleanTable(JSON.parse(JSON.stringify(tbl))):null});
 function thickOpts(n,unit){const o=[['0','なし']];for(let i=1;i<n;i++)o.push([String(i),`${i}${unit}目と${i+1}${unit}目の間`]);return o}
 function tblSlot(side){const t=wf&&wf[side].table;
-  if(!t)return`<button type="button" class="addph" data-act="addTable" data-side="${side}">${ICON.table}<span>表を追加</span><small>行と列を指定してマスに入力</small></button>`;
+  if(!t)return`<button type="button" class="addph" data-act="addTable" data-side="${side}">${ICON.table}<span>テーブルを追加</span><small>行と列を指定してマスに入力</small></button>`;
   let g='';
   for(let i=0;i<t.r;i++){g+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.h===i+1?'tb ':'')+(t.th.v===j+1?'tr':'');g+=`<td class="${cl}"><input class="tbcell" data-side="${side}" data-r="${i}" data-c="${j}" value="${esc(t.cells[i][j])}" maxlength="200" autocomplete="off" aria-label="${i+1}行${j+1}列"></td>`}g+='</tr>'}
   return`<div class="tbed"><div class="tbbar">行<span class="stp"><button type="button" data-act="tbStep" data-side="${side}" data-k="r" data-d="-1" ${t.r<=1?'disabled':''} aria-label="行を減らす">−</button><b>${t.r}</b><button type="button" data-act="tbStep" data-side="${side}" data-k="r" data-d="1" ${t.r>=TMAX_R?'disabled':''} aria-label="行を増やす">＋</button></span>
     列<span class="stp"><button type="button" data-act="tbStep" data-side="${side}" data-k="c" data-d="-1" ${t.c<=1?'disabled':''} aria-label="列を減らす">−</button><b>${t.c}</b><button type="button" data-act="tbStep" data-side="${side}" data-k="c" data-d="1" ${t.c>=TMAX_C?'disabled':''} aria-label="列を増やす">＋</button></span>
-    <button type="button" class="rm" data-act="rmTable" data-side="${side}">${ICON.trash}表を削除</button></div>
+    <button type="button" class="rm" data-act="rmTable" data-side="${side}">${ICON.trash}テーブルを削除</button></div>
     <label class="tbthick">横の太線<select data-tbthick="${side}" data-dir="h" ${t.r<2?'disabled':''}>${thickOpts(t.r,'行').map(([v,l])=>`<option value="${v}" ${+v===t.th.h?'selected':''}>${l}</option>`).join('')}</select></label>
     <label class="tbthick">縦の太線<select data-tbthick="${side}" data-dir="v" ${t.c<2?'disabled':''}>${thickOpts(t.c,'列').map(([v,l])=>`<option value="${v}" ${+v===t.th.v?'selected':''}>${l}</option>`).join('')}</select></label>
     <div class="tbwrap"><table class="tbl tbl-edit">${g}</table></div></div>`}
@@ -501,8 +501,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKe
 function openWordModal(id){const d=cur(),w=id?d.words.find(x=>x.id===id):null;
   wf={t:wfSide(w&&w.ti,w&&w.tt),m:wfSide(w&&w.mi,w&&w.mt),busy:false};
   openModal(`<form id="wordform" data-id="${id||''}" novalidate>${mh(w?'単語を編集':'単語を追加')}
-  <div class="fld"><span>表：単語・問題</span><textarea name="t" class="grow" rows="1" autofocus autocomplete="off" autocapitalize="off" spellcheck="false">${esc(w?w.t:'')}</textarea><div class="phslot" id="ph-t" data-side="t">${phSlot('t')}</div><div class="tblslot" id="tb-t">${tblSlot('t')}</div></div>
-  <div class="fld"><span>裏：意味・答え</span><textarea name="m" class="grow" rows="1" autocomplete="off">${esc(w?w.m:'')}</textarea><span class="hintline">改行もそのままカードに表示されます（保存は「保存」ボタン、PCは Ctrl＋Enter でも可）</span><div class="phslot" id="ph-m" data-side="m">${phSlot('m')}</div><div class="tblslot" id="tb-m">${tblSlot('m')}</div></div>
+  <div class="fld"><span>表</span><textarea name="t" class="grow" rows="1" placeholder="表に出す内容（例：日本）" autofocus autocomplete="off" autocapitalize="off" spellcheck="false">${esc(w?w.t:'')}</textarea><div class="phslot" id="ph-t" data-side="t">${phSlot('t')}</div><div class="tblslot" id="tb-t">${tblSlot('t')}</div></div>
+  <div class="fld"><span>裏</span><textarea name="m" class="grow" rows="1" placeholder="裏に出す内容（例：東京）" autocomplete="off">${esc(w?w.m:'')}</textarea><span class="hintline">改行もそのままカードに表示されます（保存は「保存」ボタン、PCは Ctrl＋Enter でも可）</span><div class="phslot" id="ph-m" data-side="m">${phSlot('m')}</div><div class="tblslot" id="tb-m">${tblSlot('m')}</div></div>
   <label class="fld"><span>メモ・例文<i>任意 ・ カードの裏に表示</i></span><textarea name="n" rows="2">${esc(w?w.n:'')}</textarea></label>
   ${w?`<div class="toggle-row">覚えた<label class="switch"><input type="checkbox" name="mas" ${w.mas?'checked':''}><span></span></label></div><div class="wstat">正解 ${w.c}回 ・ 不正解 ${w.w}回</div>`:''}
   <div class="mf">${w?`<button type="button" class="btn ghost danger" data-act="delWord" data-id="${w.id}">${ICON.trash}削除</button>`:`<button type="submit" class="btn ghost" name="more" value="1">続けて追加</button>`}<button type="submit" class="btn primary">保存</button></div></form>`)}
@@ -518,19 +518,19 @@ function parseLines(txt){const out=[];let seenLine=false;for(let line of txt.spl
   else if(/[,，]/.test(line)){const p=csvSplit(line);t=p[0];m=p[1];n=p.slice(2).filter(x=>x!=='').join(', ')}
   else{const r=line.match(/^(.+?)\s*(?:[:：=＝]|\s-\s)\s*(.+)$/)||line.match(/^([\x20-\x7E]+?)\s+([^\x00-\x7F].*)$/);if(r){t=r[1];m=r[2]}}
   t=(t||'').trim().replace(/^"|"$/g,'');m=(m||'').trim().replace(/^"|"$/g,'');
-  const header=!seenLine&&/^(単語|英単語|word|term)$/i.test(t);seenLine=true;if(t&&m&&!header)out.push({t,m,n:n.trim()})}return out}
+  const header=!seenLine&&/^(単語|英単語|word|term|表|おもて|front)$/i.test(t);seenLine=true;if(t&&m&&!header)out.push({t,m,n:n.trim()})}return out}
 function openBulk(){openModal(`<form id="bulkform">${mh('まとめて追加')}
-  <p class="muted">1行に1語ずつ。「単語,意味」または「単語,意味,メモ」の形で入力します。「単語:意味」やタブ区切りにも対応。Excelやスプレッドシートの2〜3列（3列目はメモ）をそのまま貼り付けできます。</p>
-  <label class="fld"><textarea name="txt" id="bulktxt" rows="9" placeholder="apple,りんご&#10;borrow,借りる,⇔ lend 貸す&#10;decide,決める,decide to do ～することに決める" autofocus></textarea></label>
+  <p class="muted">1行に1枚ずつ。「表,裏」または「表,裏,メモ」の形で入力します。「表:裏」やタブ区切りにも対応。Excelやスプレッドシートの2〜3列（3列目はメモ）をそのまま貼り付けできます。</p>
+  <label class="fld"><textarea name="txt" id="bulktxt" rows="9" placeholder="apple,りんご&#10;日本,東京,首都&#10;1192年,鎌倉幕府,いいくにつくろう" autofocus></textarea></label>
   <div class="mf"><button class="btn primary" type="submit" id="bulkbtn">0語を追加</button></div></form>`)}
 function openSetup(){const d=cur();if(!d.words.length){toast('まず単語を追加してください');return}
   const c=k=>d.words.filter(filterFn(k)).length;
   const seg=(key,items)=>`<div class="seg" data-key="${key}">${items.map(([v,l,s])=>`<button type="button" class="${prefs[key]===v?'on':''}" data-act="seg" data-key="${key}" data-val="${v}">${l}${s!=null?`<small>${s}語</small>`:''}</button>`).join('')}</div>`;
   openModal(`${mh('テスト')}<div id="setup">
-   <div class="fld"><span>テストの種類</span>${seg('tmode',[['quiz','4択'],['type','スペル入力']])}</div>
+   <div class="fld"><span>テストの種類</span>${seg('tmode',[['quiz','4択'],['type','入力']])}</div>
    <div class="fld"><span>出題範囲</span>${seg('range',[['all','すべて',c('all')],['todo','未習得',c('todo')],['star','★',c('star')],['weak','苦手',c('weak')]])}</div>
    <div class="fld"><span>出題順</span>${seg('order',[['rand','ランダム'],['seq','登録順']])}</div>
-   <div class="fld" id="dirfld" style="${prefs.tmode==='type'?'display:none':''}"><span>出題形式</span>${seg('dir',[['tm','単語 → 意味'],['mt','意味 → 単語']])}</div>
+   <div class="fld" id="dirfld" style="${prefs.tmode==='type'?'display:none':''}"><span>出題の向き</span>${seg('dir',[['tm','表 → 裏'],['mt','裏 → 表']])}</div>
    <div class="fld"><span>問題数</span>${seg('count',[['10','10'],['20','20'],['50','50'],['all','すべて']])}</div>
    <button class="btn primary wide" data-act="start" id="startbtn" style="margin-top:4px"></button></div>`);updStart()}
 function startCard(){const d=cur(),list=visibleWords(d);
@@ -592,7 +592,7 @@ const ACT={
   noop(){},
   cardPrev(){cardGo(-1)},
   cardNext(){cardGo(1)},
-  swapDir(){sess.dir=sess.dir==='tm'?'mt':'tm';prefs.cardDir=sess.dir;savePrefs();sess.flipped=false;render();toast(sess.dir==='tm'?'表：単語 / 裏：意味':'表：意味 / 裏：単語')},
+  swapDir(){sess.dir=sess.dir==='tm'?'mt':'tm';prefs.cardDir=sess.dir;savePrefs();sess.flipped=false;render();toast(sess.dir==='tm'?'表を先に表示します':'裏を先に表示します')},
   seg(el){prefs[el.dataset.key]=el.dataset.val;savePrefs();if(el.dataset.key==='tmode'){const f=$('#dirfld');if(f)f.style.display=prefs.tmode==='type'?'none':''}el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));updStart()},
   start(){const mode=prefs.tmode,d=cur();if(mode==='quiz'&&d.words.length<2){toast('4択テストには2語以上必要です');return}const p=poolFor(d);if(!p.length)return;closeModal();startSession(mode,p.map(w=>w.id))},
   quit(){clearTimeout(sess.timer);try{speechSynthesis.cancel()}catch(e){}if(sess.mode!=='card'&&sess.res.length)go({name:'result',id:sess.deckId});else go(sess.back)},
@@ -652,7 +652,7 @@ async function saveWordForm(f,fd,sub){
   if(!wf||wf.busy)return;const d=cur();if(!d)return;
   const nl=v=>String(v||'').replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').trim(),t=nl(fd.get('t')),m=nl(fd.get('m')),n=String(fd.get('n')||'').trim();
   const has=s=>!!(wf[s].pending||(!wf[s].removed&&wf[s].ref)||tblHas(wf[s].table));
-  if(!(t||has('t'))||!(m||has('m'))){toast('表と裏に、それぞれ文字・写真・表のどれかを入れてください');return}
+  if(!(t||has('t'))||!(m||has('m'))){toast('表と裏に、それぞれ文字・写真・テーブルのどれかを入れてください');return}
   const cur0=wf;cur0.busy=true;const btns=[...f.querySelectorAll('button[type=submit]')],pb=f.querySelector('.btn.primary[type=submit]'),lbl=pb.textContent;
   btns.forEach(b=>b.disabled=true);if(cur0.t.pending||cur0.m.pending)pb.textContent='写真を保存中…';
   const refs={},old=[];
@@ -663,8 +663,8 @@ async function saveWordForm(f,fd,sub){
   catch(err){cur0.busy=false;btns.forEach(b=>b.disabled=false);pb.textContent=lbl;toast('写真を保存できませんでした。もう一度お試しください');return}
   if(f.dataset.id){const w=d.words.find(x=>x.id===f.dataset.id);if(w){w.t=t;w.m=m;w.n=n;w.mas=fd.get('mas')==='on';w.ti=refs.t;w.mi=refs.m;w.tt=trimTbl(cur0.t.table);w.mt=trimTbl(cur0.m.table)}saveDeck(d);old.forEach(delAsset);wf=null;closeModal();render();return}
   const dup=!!t&&d.words.some(w=>norm(w.t)===norm(t));d.words.push(cleanWord({id:'w'+rid(),t,m,n,ti:refs.t,mi:refs.m,tt:trimTbl(cur0.t.table),mt:trimTbl(cur0.m.table)}));saveDeck(d);render();
-  if(sub&&sub.value==='1'&&wf===cur0){f.reset();setTimeout(growAll,0);wf={t:wfSide(null),m:wfSide(null),busy:false};refreshPh('t');refreshPh('m');refreshTb('t');refreshTb('m');btns.forEach(b=>b.disabled=false);pb.textContent=lbl;f.querySelector('[name=t]').focus();toast(dup?'追加しました（同じ単語が既にあります）':'追加しました')}
-  else{wf=null;closeModal();if(dup)toast('同じ単語が既に登録されています')}
+  if(sub&&sub.value==='1'&&wf===cur0){f.reset();setTimeout(growAll,0);wf={t:wfSide(null),m:wfSide(null),busy:false};refreshPh('t');refreshPh('m');refreshTb('t');refreshTb('m');btns.forEach(b=>b.disabled=false);pb.textContent=lbl;f.querySelector('[name=t]').focus();toast(dup?'追加しました（表が同じカードがすでにあります）':'追加しました')}
+  else{wf=null;closeModal();if(dup)toast('表が同じカードがすでに登録されています')}
 }
 async function compressImg(file,max,q){
   const url=URL.createObjectURL(file);
