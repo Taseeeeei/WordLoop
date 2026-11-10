@@ -37,6 +37,19 @@ const ICON={
   table:'<svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M10 9.5v10"/><path d="M3.5 9.5h17" stroke-width="3"/></svg>',
   bulb:'<svg class="i" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0012 3z"/></svg>'
 };
+const LANGS=[['auto','自動判定'],['ja-JP','日本語'],['en-US','英語'],['de-DE','ドイツ語'],['es-ES','スペイン語'],['fr-FR','フランス語'],['ru-RU','ロシア語'],['zh-CN','中国語']];
+const cleanLang=v=>LANGS.some(x=>x[0]===v)?v:'auto';
+const langName=v=>(LANGS.find(x=>x[0]===v)||['','この言語'])[1];
+function guessLang(t){t=String(t);
+  if(/[\u3040-\u30ff]/.test(t))return'ja-JP';
+  if(/[\u0400-\u04FF]/.test(t))return'ru-RU';
+  if(/[\u4E00-\u9FFF]/.test(t))return'ja-JP';
+  if(/[äöüßÄÖÜ]/.test(t))return'de-DE';
+  if(/[ñÑ¿¡]/.test(t))return'es-ES';
+  if(/[àâçèêëîïôœùûÿÀÂÇÈÊËÎÏÔŒÙÛŸ]/.test(t))return'fr-FR';
+  if(/^[\x00-\x7F\u00C0-\u024F]+$/.test(t))return'en-US';
+  return'ja-JP'}
+const resolveLang=(t,l)=>l&&l!=='auto'?l:guessLang(t);
 const COLORS=['#3B82F6','#22D3EE','#8B5CF6','#2DD4BF','#F59E0B','#EC4899','#94A3B8'];
 const OLDCOL=['#E4572E','#F2A100','#1F9D63','#2F7FD1','#7357D6','#D94C8C','#5B6472'];
 const fixCol=c=>COLORS.includes(c)?c:OLDCOL.includes(c)?COLORS[OLDCOL.indexOf(c)]:COLORS[0];
@@ -72,7 +85,7 @@ function tableHTML(t){if(!t)return'';const fs=Math.max(10,Math.min(20,Math.round
   for(let i=0;i<t.r;i++){o+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.h===i+1?'tb ':'')+(t.th.v===j+1?'tr':'');o+=`<td class="${cl}">${esc(t.cells[i][j])}</td>`}o+='</tr>'}return o+'</table>'}
 const speechOf=(text,t)=>text||tblText(t,'、');
 function cleanWord(w){if(!w||typeof w!=='object')w={};return{id:safeId(w.id,'w'),t:String(w.t||''),m:String(w.m||''),n:String(w.n||''),mas:!!w.mas,c:+w.c||0,w:+w.w||0,star:!!w.star,lt:+w.lt||0,ti:cleanRef(w.ti),mi:cleanRef(w.mi),tt:cleanTable(w.tt),mt:cleanTable(w.mt)}}
-function cleanDeck(d){if(!d||typeof d!=='object')return null;return{id:safeId(d.id,'d'),name:String(d.name||'単語帳'),color:fixCol(d.color),createdAt:+d.createdAt||Date.now(),updatedAt:+d.updatedAt||0,words:Array.isArray(d.words)?d.words.map(cleanWord):[],ord:typeof d.ord==='number'&&isFinite(d.ord)?d.ord:(+d.createdAt||Date.now()),folder:typeof d.folder==='string'&&SAFE_ID.test(d.folder)?d.folder:null}}
+function cleanDeck(d){if(!d||typeof d!=='object')return null;return{id:safeId(d.id,'d'),name:String(d.name||'単語帳'),color:fixCol(d.color),createdAt:+d.createdAt||Date.now(),updatedAt:+d.updatedAt||0,words:Array.isArray(d.words)?d.words.map(cleanWord):[],ord:typeof d.ord==='number'&&isFinite(d.ord)?d.ord:(+d.createdAt||Date.now()),folder:typeof d.folder==='string'&&SAFE_ID.test(d.folder)?d.folder:null,lang:{t:cleanLang(d.lang&&d.lang.t),m:cleanLang(d.lang&&d.lang.m)}}}
 const byOrd=(a,b)=>(a.ord-b.ord)||(a.createdAt-b.createdAt);
 function cleanFolder(f){if(!f||typeof f!=='object'||!f.id)return null;return{id:safeId(f.id,'f'),name:String(f.name||'ファイル'),color:fixCol(f.color),createdAt:+f.createdAt||Date.now()}}
 const NATIVE=!!(window.Capacitor&&typeof Capacitor.isNativePlatform==='function'&&Capacitor.isNativePlatform());
@@ -305,7 +318,7 @@ function cardGo(delta,swipe){if(!sess||sess.lock)return;const ni=sess.i+delta,c=
 function pick(i){if(sess.picked!=null||!sess.opts[i])return;const w=curWord();sess.picked=i;const ok=sess.opts[i].id===w.id;record(ok);playSfx(ok);render();if(ok)sess.timer=setTimeout(nextQ,750)}
 const norm=s=>String(s).normalize('NFKC').toLowerCase().replace(/[.,!?;:'"’‘“”]/g,'').replace(/\s+/g,' ').trim();
 function answerType(val){if(sess.typed)return;const w=curWord();const alts=w.t.split(/[\/／;；]/).map(norm).filter(Boolean);alts.push(norm(w.t));
-  const ok=val!=null&&alts.includes(norm(val));sess.typed={val:val||'',ok};record(ok);playSfx(ok);render();if(ok)setTimeout(()=>speak(w.t,true),prefs.sfx?350:0)}
+  const ok=val!=null&&alts.includes(norm(val));sess.typed={val:val||'',ok};record(ok);playSfx(ok);render();if(ok)setTimeout(()=>speak(w.t,true,sideLang('t')),prefs.sfx?350:0)}
 function attachSwipe(){
   const c=$('#card');if(!c)return;let sx=0,sy=0,dx=0,down=false,moved=false;
   c.addEventListener('pointerdown',e=>{if(sess.lock)return;down=true;moved=false;sx=e.clientX;sy=e.clientY;dx=0;c.style.transition='none';try{c.setPointerCapture(e.pointerId)}catch(_){}});
@@ -330,11 +343,17 @@ function attachSeek(){
     if(idx!==sess.i){const old=sess.i;sess.i=idx;sess.flipped=false;sess.enter=idx>old?'in-r':'in-l';render()}};
   s.addEventListener('pointerup',end);s.addEventListener('pointercancel',end);
 }
-function speak(text,quiet){
-  if(NATIVE&&P.TextToSpeech){const v=Math.max(0,Math.min(1,(+prefs.vol||0)/100));if(!v||!text)return;const lang=/^[\x00-\x7F]+$/.test(text)?'en-US':'ja-JP';
-    Promise.resolve(P.TextToSpeech.stop()).catch(()=>{}).then(()=>P.TextToSpeech.speak({text,lang,rate:.95,pitch:1,volume:v,category:'ambient'})).catch(()=>{if(!quiet)toast('読み上げを使えません。端末の「テキスト読み上げ」設定を確認してください')});return}
+const voiceWarned={};
+function sideLang(side){const d=sess&&deckById(sess.deckId);return d&&d.lang?d.lang[side]:'auto'}
+function speak(text,quiet,lang){
+  if(NATIVE&&P.TextToSpeech){const v=Math.max(0,Math.min(1,(+prefs.vol||0)/100));if(!v||!text)return;const L=resolveLang(text,lang);
+    Promise.resolve(P.TextToSpeech.stop()).catch(()=>{}).then(()=>P.TextToSpeech.speak({text,lang:L,rate:.95,pitch:1,volume:v,category:'ambient'})).catch(()=>{if(!quiet)toast('読み上げを使えません。端末の「テキスト読み上げ」設定を確認してください')});return}
   try{const s=window.speechSynthesis;if(!s||typeof SpeechSynthesisUtterance==='undefined'){if(!quiet)toast('この環境では読み上げが使えません');return}
-  s.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=/^[\x00-\x7F]+$/.test(text)?'en-US':'ja-JP';u.rate=.95;u.volume=Math.max(0,Math.min(1,(+prefs.vol||0)/100));if(!u.volume)return;s.speak(u)}catch(e){}}
+  s.cancel();const L=resolveLang(text,lang),u=new SpeechSynthesisUtterance(text);u.lang=L;
+  const vs=typeof s.getVoices==='function'?s.getVoices():[];
+  if(vs.length){const nl=x=>String(x||'').replace('_','-').toLowerCase(),want=L.toLowerCase(),v=vs.find(x=>nl(x.lang)===want)||vs.find(x=>nl(x.lang).slice(0,2)===want.slice(0,2));
+    if(v)u.voice=v;else if(!quiet&&!voiceWarned[L]){voiceWarned[L]=1;toast(`この端末に${langName(L)}の読み上げ音声がありません`)}}
+  u.rate=.95;u.volume=Math.max(0,Math.min(1,(+prefs.vol||0)/100));if(!u.volume)return;s.speak(u)}catch(e){}}
 
 function renderResult(){
   const d=deckById(sess.deckId);if(!d){view={name:'home'};return renderHome()}
@@ -463,6 +482,8 @@ function openDeckForm(id,inFolder){const d=id?deckById(id):null,col=d?d.color:CO
   <label class="fld"><span>名前</span><input name="name" required maxlength="40" value="${esc(d?d.name:'')}" placeholder="例：英検2級、TOEIC、古文単語" autofocus autocomplete="off"></label>
   <div class="fld"><span>カラー</span><div class="swatches">${COLORS.map(c=>`<label><input type="radio" name="color" value="${c}" ${c===col?'checked':''}><i style="background:${c}"></i></label>`).join('')}</div></div>
   ${folderSelect(d?deckFolder(d):(inFolder||null))}
+  <div class="langrow"><label class="fld"><span>表の読み上げ言語</span><select name="lt">${LANGS.map(([v,l])=>`<option value="${v}" ${(d?d.lang.t:'auto')===v?'selected':''}>${l}</option>`).join('')}</select></label>
+  <label class="fld"><span>裏の読み上げ言語</span><select name="lm">${LANGS.map(([v,l])=>`<option value="${v}" ${(d?d.lang.m:'auto')===v?'selected':''}>${l}</option>`).join('')}</select></label></div>
   <div class="mf"><button class="btn primary" type="submit">${d?'保存':'作成'}</button></div></form>`)}
 let pendingMove=null;
 function openFolderForm(id,moveDeck){const f=id?folderById(id):null,col=f?f.color:COLORS[(S.folders.length+2)%COLORS.length];pendingMove=moveDeck||null;
@@ -580,8 +601,8 @@ const ACT={
   moveTo(el){const d=deckById(el.dataset.id);if(!d)return;const fid=el.dataset.f||null;d.folder=fid;saveDeck(d);closeModal();render();toast(fid?`「${folderById(fid).name}」に移動しました`:'ホームに移動しました')},
   newFolderMove(el){openFolderForm(null,el.dataset.id)},
   moveHere(el){const d=deckById(el.dataset.id);if(!d)return;d.folder=el.dataset.f;saveDeck(d);render();openAddToFolder(el.dataset.f);toast(`「${d.name}」を移動しました`)},
-  sample(){const d={id:'d'+rid(),name:'サンプル：基本英単語',color:COLORS[0],createdAt:Date.now(),updatedAt:0,words:SAMPLE.map(([t,m,n])=>cleanWord({id:'w'+rid(),t,m,n}))};S.decks.push(d);saveDeck(d);go({name:'deck',id:d.id,filter:'all',q:''})},
-  deckMenu(el){menuDeck=(el&&el.dataset.id)||view.id;const d=deckById(menuDeck);if(!d)return;openModal(`${mh(esc(d.name))}<div class="menu"><button data-act="renameDeck">${ICON.edit}名前・カラーを変更</button><button data-act="moveDeck">${ICON.move}ファイルに移動</button><button data-act="copyCsv">${ICON.copy}単語をCSVでコピー</button><button data-act="resetStats">${ICON.reset}学習記録をリセット</button><button class="danger" data-act="delDeck">${ICON.trash}単語帳を削除</button></div>`)},
+  sample(){const d={id:'d'+rid(),name:'サンプル：基本英単語',color:COLORS[0],lang:{t:'en-US',m:'ja-JP'},createdAt:Date.now(),updatedAt:0,words:SAMPLE.map(([t,m,n])=>cleanWord({id:'w'+rid(),t,m,n}))};S.decks.push(d);saveDeck(d);go({name:'deck',id:d.id,filter:'all',q:''})},
+  deckMenu(el){menuDeck=(el&&el.dataset.id)||view.id;const d=deckById(menuDeck);if(!d)return;openModal(`${mh(esc(d.name))}<div class="menu"><button data-act="renameDeck">${ICON.edit}名前・カラー・読み上げ言語</button><button data-act="moveDeck">${ICON.move}ファイルに移動</button><button data-act="copyCsv">${ICON.copy}単語をCSVでコピー</button><button data-act="resetStats">${ICON.reset}学習記録をリセット</button><button class="danger" data-act="delDeck">${ICON.trash}単語帳を削除</button></div>`)},
   renameDeck(){openDeckForm(menuDeck||view.id)},
   copyCsv(){const d=tgtDeck(),txt=csvOf(d);if(!d.words.length){toast('単語がありません');return}
     const fallback=()=>{openModal(`${mh('CSV')}<p class="muted">下のテキストを選択してコピーしてください。</p><textarea class="copy" readonly>${esc(txt)}</textarea>`)};
@@ -611,10 +632,11 @@ const ACT={
   start(){const mode=prefs.tmode,d=cur();if(mode==='quiz'&&d.words.length<2){toast('4択テストには2語以上必要です');return}const p=poolFor(d);if(!p.length)return;closeModal();startSession(mode,p.map(w=>w.id))},
   quit(){clearTimeout(sess.timer);try{speechSynthesis.cancel()}catch(e){}if(sess.mode!=='card'&&sess.res.length)go({name:'result',id:sess.deckId});else go(sess.back)},
   speak(){const w=curWord();if(!w)return;let t='';
-    if(sess&&sess.mode==='card'){const termSide=(sess.dir==='tm')!==!!sess.flipped;t=termSide?speechOf(w.t,w.tt):speechOf(w.m,w.mt)}
-    else if(sess&&sess.mode==='quiz'){t=sess.dir==='tm'?speechOf(w.t,w.tt):speechOf(w.m,w.mt)}
-    else t=w.t;
-    if(!t){toast('読み上げる文字がありません');return}speak(t)},
+    let side='t';
+    if(sess&&sess.mode==='card'){side=((sess.dir==='tm')!==!!sess.flipped)?'t':'m'}
+    else if(sess&&sess.mode==='quiz'){side=sess.dir==='tm'?'t':'m'}
+    t=side==='t'?speechOf(w.t,w.tt):speechOf(w.m,w.mt);if(sess&&sess.mode==='type')t=w.t;
+    if(!t){toast('読み上げる文字がありません');return}speak(t,false,sideLang(side))},
   pick(el){pick(+el.dataset.i)},
   next(){nextQ()},
   giveup(){answerType(null)},
@@ -627,7 +649,7 @@ const ACT={
   exportBackup(){exportBackup()},
   align(el){prefs.align=el.dataset.val;savePrefs();applyTheme();el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))},
   theme(el){prefs.theme=el.dataset.val;savePrefs();applyTheme();el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))},
-  testSound(){playSfx(true,true);setTimeout(()=>speak('Hello'),450)},
+  testSound(){playSfx(true,true);setTimeout(()=>speak('Hello','','en-US'),450)},
   resume(){const d=deckById(prefs.lastDeck)||S.decks[0];if(d)go({name:'deck',id:d.id,filter:'all',q:''})},
   addTable(el){const s=el.dataset.side;if(!wf||!wf[s])return;wf[s].table=cleanTable({r:3,c:2,cells:[],th:{h:1,v:0}});refreshTb(s);const f=document.querySelector(`.tbcell[data-side="${s}"]`);if(f)f.focus()},
   tbStep(el){const s=el.dataset.side,t=wf&&wf[s]&&wf[s].table;if(!t)return;const d=+el.dataset.d;let r=t.r,c=t.c;if(el.dataset.k==='r')r=Math.max(1,Math.min(TMAX_R,r+d));else c=Math.max(1,Math.min(TMAX_C,c+d));wf[s].table=resizeTbl(t,r,c);refreshTb(s)},
@@ -648,8 +670,9 @@ document.addEventListener('submit',e=>{
   e.preventDefault();const f=e.target,fd=new FormData(f);
   if(f.id==='deckform'){const name=String(fd.get('name')||'').trim();if(!name)return;const color=String(fd.get('color')||COLORS[0]);
     const folder=fd.has('folder')?(String(fd.get('folder')||'')||null):(f.dataset.folder||null);
-    if(f.dataset.id){const d=deckById(f.dataset.id);d.name=name;d.color=color;d.folder=folder;saveDeck(d);closeModal();render()}
-    else{const d={id:'d'+rid(),name,color,createdAt:Date.now(),updatedAt:0,words:[],folder};S.decks.push(d);saveDeck(d);closeModal();prefs.lastDeck=d.id;savePrefs();go({name:'deck',id:d.id,filter:'all',q:''})}}
+    const lang={t:cleanLang(String(fd.get('lt')||'auto')),m:cleanLang(String(fd.get('lm')||'auto'))};
+    if(f.dataset.id){const d=deckById(f.dataset.id);d.name=name;d.color=color;d.folder=folder;d.lang=lang;saveDeck(d);closeModal();render()}
+    else{const d={id:'d'+rid(),name,color,createdAt:Date.now(),updatedAt:0,words:[],folder,lang};S.decks.push(d);saveDeck(d);closeModal();prefs.lastDeck=d.id;savePrefs();go({name:'deck',id:d.id,filter:'all',q:''})}}
   else if(f.id==='folderform'){const name=String(fd.get('name')||'').trim();if(!name)return;const color=String(fd.get('color')||COLORS[0]);
     if(f.dataset.id){const x=folderById(f.dataset.id);if(x){x.name=name;x.color=color}saveFolders();closeModal();render()}
     else{const x={id:'f'+rid(),name,color,createdAt:Date.now()};S.folders.push(x);saveFolders();closeModal();
