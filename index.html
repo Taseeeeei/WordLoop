@@ -15,11 +15,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WordLoop">
 <style>
-@font-face{font-family:"Inter";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/inter-Regular.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
-@font-face{font-family:"Inter";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/inter-Medium.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
-@font-face{font-family:"Inter";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/inter-SemiBold.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
-@font-face{font-family:"Inter";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/inter-Bold.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
-@font-face{font-family:"Inter";font-style:normal;font-weight:800;font-display:swap;src:url(fonts/inter-ExtraBold.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
+@font-face{font-family:"Inter";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/inter2-Regular.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
+@font-face{font-family:"Inter";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/inter2-Medium.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
+@font-face{font-family:"Inter";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/inter2-SemiBold.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
+@font-face{font-family:"Inter";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/inter2-Bold.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
+@font-face{font-family:"Inter";font-style:normal;font-weight:800;font-display:swap;src:url(fonts/inter2-ExtraBold.woff) format("woff");unicode-range:U+0020-024F,U+0259,U+02B0-02FF,U+0300-036F,U+0370-03FF,U+0400-052F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2116,U+2122,U+2190-2193,U+2212}
 :root{
   color-scheme:dark;
   --bg:#040A1C;--surface:#0B1531;--surface2:#14224A;--ink:#EAF2FF;--muted:#8CA0C8;--line:rgba(120,170,255,.14);
@@ -32,7 +32,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg)}
 body{margin:0;color:var(--ink);min-height:100vh;
-  font-family:"Inter","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  font-family:"Inter",system-ui,-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP","Yu Gothic UI","Meiryo",sans-serif;
   background:
     radial-gradient(900px 520px at 50% -160px,rgba(37,99,235,.42),transparent 70%),
     radial-gradient(600px 400px at 110% 100%,rgba(14,165,233,.14),transparent 70%),

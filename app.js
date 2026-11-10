@@ -394,7 +394,9 @@ function openSettings(){
     <p class="muted" id="remindNote">${remindNote()}</p></div>
   <div class="set-sec"><h4>${ICON.upload}バックアップ</h4>
     <div class="mf" style="margin-top:0"><button type="button" class="btn ghost" data-act="exportBackup">${ICON.upload}書き出す</button><label class="btn ghost" style="cursor:pointer">${ICON.reset}読み込む<input type="file" id="importFile" accept=".json,application/json" hidden></label></div>
-    <p class="muted">単語帳・ファイル・写真をまとめて1つのファイルに保存します。機種変更や、アプリを入れ直すときに使ってください。データはこのスマホの中だけに保存されているため、アプリを削除すると消えます。</p></div>`)}
+    <p class="muted">単語帳・ファイル・写真をまとめて1つのファイルに保存します。機種変更や、アプリを入れ直すときに使ってください。データはこのスマホの中だけに保存されているため、アプリを削除すると消えます。</p></div>
+  <p class="muted" id="appver" style="text-align:center;margin-top:18px;opacity:.7"></p>`);showVer()}
+function showVer(){try{if(!('caches' in window))return;caches.keys().then(k=>{const v=k.map(x=>/^wordloop-v(\d+)$/.exec(x)).filter(Boolean).map(m=>+m[1]).sort((a,b)=>b-a)[0];const el=$('#appver');if(el&&v)el.textContent='WordLoop バージョン '+v}).catch(()=>{})}catch(e){}}
 function updRemindUI(){if(view.name==='home')render();const f=$('#remindfld');if(f)f.style.display=prefs.remind?'':'none';const n=$('#remindNote');if(n)n.innerHTML=remindNote()}
 document.addEventListener('input',e=>{if(e.target.id==='vol'){prefs.vol=+e.target.value;const b=$('#volv');if(b)b.textContent=prefs.vol;savePrefs()}});
 document.addEventListener('change',e=>{const t=e.target;
@@ -767,5 +769,11 @@ if(NATIVE&&P.App){
   render();scheduleRemind();
   if(!NATIVE&&'serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname))){
     const hadController=!!navigator.serviceWorker.controller;
-    navigator.serviceWorker.register('sw.js').then(reg=>{reg.addEventListener('updatefound',()=>{const nw=reg.installing;if(!nw)return;nw.addEventListener('statechange',()=>{if(nw.state==='activated'&&hadController)toast('新しいバージョンに更新しました。次に開いたときに反映されます')})})}).catch(()=>{})}
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    // a new version took over: reload once at a safe moment so it shows right away
+    if(hadController)navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      let last=0;try{last=+sessionStorage.getItem('wl-upd')||0}catch(e){}
+      if(Date.now()-last<30000)return;try{sessionStorage.setItem('wl-upd',String(Date.now()))}catch(e){}
+      if(!$('#modal').classList.contains('open')&&view.name!=='study'){Promise.resolve(saveT?writeNow():null).then(()=>location.reload())}
+      else toast('新しいバージョンに更新しました。次に開いたときに反映されます')})}
 })();

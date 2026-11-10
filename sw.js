@@ -1,11 +1,11 @@
 // WordLoop：オフラインで動かすための仕組み（Service Worker）
 // アプリを更新したら、下の VERSION の数字を1つ増やしてください（例：v2 → v3）
-const VERSION = 'wordloop-v12';
+const VERSION = 'wordloop-v13';
 const FILES = [
   './', './index.html', './app.js', './manifest.webmanifest', './privacy-policy.html',
   './icon.png', './favicon.png', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
-  './fonts/inter-Regular.woff', './fonts/inter-Medium.woff', './fonts/inter-SemiBold.woff',
-  './fonts/inter-Bold.woff', './fonts/inter-ExtraBold.woff'
+  './fonts/inter2-Regular.woff', './fonts/inter2-Medium.woff', './fonts/inter2-SemiBold.woff',
+  './fonts/inter2-Bold.woff', './fonts/inter2-ExtraBold.woff'
 ];
 
 self.addEventListener('install', event => {
