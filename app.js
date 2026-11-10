@@ -206,8 +206,11 @@ function emptyHome(){return`<div class="empty">
   <p>覚えたい単語を登録して、フラッシュカードや<br>テストでくり返し学習できます。</p>
   <div class="row"><button class="btn primary" data-act="newDeck">${ICON.plus}単語帳を作成</button><button class="btn ghost" data-act="sample">サンプル単語帳で試す</button></div></div>`}
 
-const FILTERS=[['all','すべて'],['todo','未習得'],['done','覚えた'],['star','★チェック'],['weak','苦手']];
-function filterFn(f){return w=>f==='all'||f==='rand'||(f==='todo'&&!w.mas)||(f==='done'&&w.mas)||(f==='star'&&w.star)||(f==='weak'&&weak(w))}
+const FILTERS=[['all','すべて'],['todo','覚えていない'],['done','覚えた'],['star','☆チェック'],['weak','苦手']];
+const SORTS=[['default','デフォルト'],['shuffle','シャッフル'],['asc','五十音・ABC順'],['desc','逆順']];
+function deckSort(){const s=view.sort||(prefs.deckSort&&prefs.deckSort[view.id])||'default';return SORTS.some(x=>x[0]===s)?s:'default'}
+const jaCollator=(()=>{try{return new Intl.Collator(['ja','en'],{numeric:true,sensitivity:'base'})}catch(e){return{compare:(a,b)=>a<b?-1:a>b?1:0}}})();
+function filterFn(f){return w=>f==='all'||(f==='todo'&&!w.mas)||(f==='done'&&w.mas)||(f==='star'&&w.star)||(f==='weak'&&weak(w))}
 function renderDeck(){
   const d=cur();if(!d){view={name:'home'};return renderHome()}
   const s=stats(d),f=view.filter||'all';
@@ -215,14 +218,15 @@ function renderDeck(){
   return`<header class="top"><button class="icon" data-act="deckBack" aria-label="戻る">${ICON.back}</button><h1 class="ttl">${esc(d.name)}</h1><button class="icon" data-act="deckMenu" data-id="${d.id}" aria-label="メニュー">${ICON.more}</button></header>
   <main class="pad" style="--c:${d.color}">
     <section class="prog"><div class="ringwrap">${ring(s.p,64,7,d.color)}<b>${s.p}<small>%</small></b></div>
-      <div class="ptxt"><b>覚えた ${s.m} / ${s.t}語</b><span>未習得 ${s.t-s.m} ・ チェック ${cnt('star')} ・ 苦手 ${cnt('weak')}</span></div></section>
+      <div class="ptxt"><b>覚えた ${s.m} / ${s.t}語</b><span>覚えていない ${s.t-s.m} ・ ☆チェック ${cnt('star')} ・ 苦手 ${cnt('weak')}</span></div></section>
     <section class="modes">
       <button class="mode" data-act="startCard"><span class="tile">${ICON.cards}</span><b>カード</b><small>めくって覚える</small></button>
       <button class="mode" data-act="setup"><span class="tile">${ICON.quiz}</span><b>テスト</b><small>4択・入力</small></button>
     </section>
     <div class="listbar"><label class="search">${ICON.search}<input id="q" type="search" placeholder="表・裏・メモを検索" value="${esc(view.q||'')}" autocomplete="off"></label>
       <button class="toggle ${prefs.red?'on':''}" data-act="red" aria-pressed="${prefs.red}">赤シート</button></div>
-    <div class="chips">${FILTERS.map(([k,l],i)=>`<button class="chip ${f===k?'on':''}" data-act="filter" data-f="${k}">${l}<i>${cnt(k)}</i></button>${i===0?`<button class="chip rnd ${f==='rand'?'on':''}" data-act="filter" data-f="rand">${ICON.shuffle}ランダム並び替え</button>`:''}`).join('')}</div>
+    <div class="chiprow"><span class="chiplbl">表示設定</span><div class="chips">${FILTERS.map(([k,l])=>`<button class="chip ${f===k?'on':''}" data-act="filter" data-f="${k}">${l}<i>${cnt(k)}</i></button>`).join('')}</div></div>
+    <div class="chiprow"><span class="chiplbl">並べ替え</span><div class="chips">${SORTS.map(([k,l])=>`<button class="chip ${deckSort()===k?'on':''}" data-act="sortBy" data-s="${k}">${k==='shuffle'?ICON.shuffle:''}${l}</button>`).join('')}</div></div>
     <div id="wordlist">${listHTML(d)}</div>
   </main>
   <div class="bottombar"><button class="btn ghost" data-act="bulk">${ICON.upload}まとめて追加</button><button class="btn primary" data-act="addWord">${ICON.plus}単語を追加</button></div>`;
@@ -231,13 +235,16 @@ function visibleWords(d){
   const q=(view.q||'').trim().toLowerCase();
   let list=d.words.filter(filterFn(view.filter||'all'));
   if(q)list=list.filter(w=>(w.t+' '+w.m+' '+w.n+' '+tblText(w.tt)+' '+tblText(w.mt)).toLowerCase().includes(q));
-  if(view.filter==='rand'){const pos=new Map((view.shuf||[]).map((id,i)=>[id,i]));list=list.slice().sort((a,b)=>(pos.has(a.id)?pos.get(a.id):1e9)-(pos.has(b.id)?pos.get(b.id):1e9))}
+  const so=deckSort();
+  if(so==='shuffle'){const pos=new Map((view.shuf||[]).map((id,i)=>[id,i]));list=list.slice().sort((a,b)=>(pos.has(a.id)?pos.get(a.id):1e9)-(pos.has(b.id)?pos.get(b.id):1e9))}
+  else if(so==='asc'||so==='desc'){const key=w=>String(w.t||tblText(w.tt)||'').trim(),dir=so==='desc'?-1:1;
+    list=list.slice().sort((a,b)=>{const ka=key(a),kb=key(b);if(!ka||!kb)return ka?-1:kb?1:0;return dir*jaCollator.compare(ka,kb)})}
   return list}
 function listHTML(d){
-  const list=visibleWords(d),rnd=view.filter==='rand';
+  const list=visibleWords(d),so=deckSort();
   if(!d.words.length)return`<div class="words"><div class="nolist">まだ単語がありません。<br>下のボタンから追加しましょう。<br>Excelやスプレッドシートからの貼り付けもOK。</div></div>`;
   if(!list.length)return`<div class="words"><div class="nolist">該当する単語はありません</div></div>`;
-  return`${rnd?`<div class="sorthint">${ICON.shuffle}ランダムに表示中 ・ もう一度押すと再シャッフル（保存された順番は変わりません）</div>`:list.length>1?`<div class="sorthint">${ICON.grip}をドラッグ（スマホは行を長押し）で並び替え</div>`:''}<ul class="words ${prefs.red?'redsheet':''}" id="wl">${list.map(w=>`<li class="word" data-act="editWord" data-id="${w.id}">${rnd?'':`<span class="grip" data-act="noop" aria-label="並び替え">${ICON.grip}</span>`}<span class="dot ${w.mas?'done':weak(w)?'weak':''}"></span><div class="wt"><b>${w.t?esc(w.t):tblHas(w.tt)?`<span class="muted-lbl">${esc(tblSum(w.tt))}</span>`:'<span class="muted-lbl">（写真）</span>'}${tblHas(w.tt)||tblHas(w.mt)?'<span class="tbtag">テーブル</span>':''}</b><span class="mean" data-act="reveal">${w.m?esc(w.m):tblHas(w.mt)?esc(tblSum(w.mt)):'（写真）'}</span>${w.n?`<small>${esc(w.n)}</small>`:''}</div>${(w.ti||w.mi)?`<img class="thumb ${w.ti?'':'mth'}" src="${esc(src(w.ti||w.mi))}" alt="" loading="lazy">`:''}<button class="star ${w.star?'on':''}" data-act="star" data-id="${w.id}" aria-label="チェック">${ICON.star}</button></li>`).join('')}</ul>`;
+  return`${so==='shuffle'?`<div class="sorthint">${ICON.shuffle}シャッフル表示中 ・ もう一度押すと並べ直し（保存された順番は変わりません）</div>`:so!=='default'?`<div class="sorthint">表の文字で${so==='asc'?'五十音・アルファベット順':'五十音・アルファベットの逆順'}に表示中（漢字は読みではなく文字の順） ・ 保存された順番は変わりません</div>`:list.length>1?`<div class="sorthint">${ICON.grip}をドラッグ（スマホは行を長押し）で並び替え</div>`:''}<ul class="words ${prefs.red?'redsheet':''} ${so!=='default'?'nosort':''}" id="wl">${list.map(w=>`<li class="word" data-act="editWord" data-id="${w.id}">${so!=='default'?'':`<span class="grip" data-act="noop" aria-label="並び替え">${ICON.grip}</span>`}<span class="dot ${w.mas?'done':weak(w)?'weak':''}"></span><div class="wt"><b>${w.t?esc(w.t):tblHas(w.tt)?`<span class="muted-lbl">${esc(tblSum(w.tt))}</span>`:'<span class="muted-lbl">（写真）</span>'}${tblHas(w.tt)||tblHas(w.mt)?'<span class="tbtag">テーブル</span>':''}</b><span class="mean" data-act="reveal">${w.m?esc(w.m):tblHas(w.mt)?esc(tblSum(w.mt)):'（写真）'}</span>${w.n?`<small>${esc(w.n)}</small>`:''}</div>${(w.ti||w.mi)?`<img class="thumb ${w.ti?'':'mth'}" src="${esc(src(w.ti||w.mi))}" alt="" loading="lazy">`:''}<button class="star ${w.star?'on':''}" data-act="star" data-id="${w.id}" aria-label="チェック">${ICON.star}</button></li>`).join('')}</ul>`;
 }
 
 /* ---------- study ---------- */
@@ -531,7 +538,7 @@ function openSetup(){const d=cur();if(!d.words.length){toast('まず単語を追
   const seg=(key,items)=>`<div class="seg" data-key="${key}">${items.map(([v,l,s])=>`<button type="button" class="${prefs[key]===v?'on':''}" data-act="seg" data-key="${key}" data-val="${v}">${l}${s!=null?`<small>${s}語</small>`:''}</button>`).join('')}</div>`;
   openModal(`${mh('テスト')}<div id="setup">
    <div class="fld"><span>テストの種類</span>${seg('tmode',[['quiz','4択'],['type','入力']])}</div>
-   <div class="fld"><span>出題範囲</span>${seg('range',[['all','すべて',c('all')],['todo','未習得',c('todo')],['star','★',c('star')],['weak','苦手',c('weak')]])}</div>
+   <div class="fld"><span>出題範囲</span>${seg('range',[['all','すべて',c('all')],['todo','覚えていない',c('todo')],['star','☆チェック',c('star')],['weak','苦手',c('weak')]])}</div>
    <div class="fld"><span>出題順</span>${seg('order',[['rand','ランダム'],['seq','登録順']])}</div>
    <div class="fld" id="dirfld" style="${prefs.tmode==='type'?'display:none':''}"><span>出題の向き</span>${seg('dir',[['tm','表 → 裏'],['mt','裏 → 表']])}</div>
    <div class="fld"><span>問題数</span>${seg('count',[['10','10'],['20','20'],['50','50'],['all','すべて']])}</div>
@@ -582,7 +589,10 @@ const ACT={
   resetStats(){const d=tgtDeck();confirmDlg('学習記録をリセット','「覚えた」と正解・不正解の回数をすべて消去します。単語は残ります。','リセット',()=>{d.words.forEach(w=>{w.mas=false;w.c=0;w.w=0});saveDeck(d);render();toast('リセットしました')})},
   delDeck(){const d=tgtDeck();confirmDlg('単語帳を削除',`「${esc(d.name)}」と${d.words.length}語を削除します。元に戻せません。`,'削除',()=>{d.words.forEach(w=>{delAsset(w.ti);delAsset(w.mi)});S.decks=S.decks.filter(x=>x.id!==d.id);saveLocal();queue(d.id);afterDeckGone(d);toast('削除しました')})},
   red(){prefs.red=!prefs.red;savePrefs();render()},
-  filter(el){const f=el.dataset.f;if(f==='rand'){const again=view.filter==='rand';view.shuf=shuffle(cur().words.map(w=>w.id));if(again)toast('シャッフルしました')}else view.shuf=null;view.filter=f;render()},
+  filter(el){view.filter=el.dataset.f;render()},
+  sortBy(el){const s=el.dataset.s;if(s==='shuffle'){const again=deckSort()==='shuffle';view.shuf=shuffle(cur().words.map(w=>w.id));if(again)toast('シャッフルしました')}
+    else{prefs.deckSort=Object.assign({},prefs.deckSort,{[view.id]:s});if(s==='default')delete prefs.deckSort[view.id];savePrefs()}
+    view.sort=s;render()},
   reveal(el,e){if(!prefs.red){ACT.editWord(el.closest('.word'));return}el.closest('.word').classList.toggle('rv')},
   editWord(el){openWordModal(el.dataset.id)},
   addWord(){openWordModal(null)},
@@ -724,7 +734,7 @@ function endDrag(){const{li,ul}=drag;cancelAnimationFrame(drag.raf);drag=null;la
   d.words.forEach((w,i)=>{if(set.has(w.id))slots.push(i)});const byId=new Map(d.words.map(w=>[w.id,w])),nw=d.words.slice();
   slots.forEach((s,k)=>{nw[s]=byId.get(ids[k])});if(nw.some((w,i)=>w!==d.words[i])){d.words=nw;saveDeck(d)}}
 const rowAt=t=>{if(!t||!t.closest)return null;if(t.closest('.star,.more'))return null;
-  if(view.name==='deck'&&view.filter!=='rand')return t.closest('#wl > .word');
+  if(view.name==='deck'&&deckSort()==='default')return t.closest('#wl > .word');
   if(view.name==='home'||view.name==='folder'){const c=t.closest('.decks[data-sort] > .deck');return c&&c.parentNode.children.length>1?c:null}
   return null};
 /* mouse / pen */

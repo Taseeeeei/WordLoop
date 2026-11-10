@@ -118,6 +118,14 @@ body.sorting .fab{opacity:0;pointer-events:none;transition:opacity .15s}
 .search input::placeholder{color:var(--muted)}
 .toggle{white-space:nowrap;flex:none;background:var(--surface);border-radius:14px;padding:0 14px;font-size:13px;font-weight:700;box-shadow:var(--shadow);color:#FF7A85}
 .toggle.on{background:var(--red);color:#fff;box-shadow:0 0 0 1px rgba(255,140,150,.4),0 6px 20px rgba(226,61,75,.45)}
+.chiprow{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+.chiprow+.chiprow{margin-bottom:12px}
+.chiplbl{flex:none;width:56px;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.02em;padding-top:8px}
+.chiprow .chips{flex:1;min-width:0;margin:0;padding:2px 0;flex-wrap:wrap;overflow:visible;gap:6px}
+.chip svg.i{width:14px;height:14px;vertical-align:-2px;margin-right:4px}
+.seg button{white-space:nowrap}
+@media (max-width:400px){.seg button{font-size:12px;padding:9px 2px}}
+.nosort .grip{display:none}.nosort .word{padding-left:14px}
 .chips{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 12px;padding:2px 16px 4px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;padding:7px 13px;border-radius:999px;background:var(--surface);font-size:13px;font-weight:600;color:var(--muted);box-shadow:0 0 0 1px var(--line)}
