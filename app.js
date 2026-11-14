@@ -436,17 +436,22 @@ document.addEventListener('change',e=>{const t=e.target;
 const blobToDataURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b)});
 const IMG_URL=/^data:image\/(jpeg|png|webp|gif);base64,([A-Za-z0-9+\/=]+)$/;
 function dataURLToBlob(u){const m=IMG_URL.exec(u);if(!m)throw new Error('bad image');const bin=atob(m[2]),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:'image/'+m[1]})}
-async function exportBackup(){
-  try{toast('書き出しています…');const photos={};
-    for(const d of S.decks)for(const w of d.words)for(const r of[w.ti,w.mi])if(r&&r.p&&!photos[r.p]){const b=await idbGet('photos',r.p);if(b)photos[r.p]=await blobToDataURL(b)}
-    const data=JSON.stringify({app:'WordLoop',version:1,exportedAt:new Date().toISOString(),decks:S.decks,folders:S.folders,photos});
-    const t=new Date(),name=`WordLoop-backup-${t.getFullYear()}${String(t.getMonth()+1).padStart(2,'0')}${String(t.getDate()).padStart(2,'0')}.json`;
+let pendingShare=null;
+async function exportBackup(deckId){
+  try{toast('書き出しています…');const photos={};const one=deckId?deckById(deckId):null;if(deckId&&!one)return;
+    const decks=one?[one]:S.decks,folders=one?[]:S.folders;
+    for(const d of decks)for(const w of d.words)for(const r of[w.ti,w.mi])if(r&&r.p&&!photos[r.p]){const b=await idbGet('photos',r.p);if(b)photos[r.p]=await blobToDataURL(b)}
+    const data=JSON.stringify({app:'WordLoop',version:1,kind:one?'deck':'backup',exportedAt:new Date().toISOString(),decks,folders,photos});
+    const t=new Date(),ymd=`${t.getFullYear()}${String(t.getMonth()+1).padStart(2,'0')}${String(t.getDate()).padStart(2,'0')}`;
+    const name=one?`WordLoop-${String(one.name).replace(/[\\/:*?"<>|\s]+/g,'_').slice(0,40)||'deck'}-${ymd}.json`:`WordLoop-backup-${ymd}.json`;
+    const title=one?`WordLoop 単語帳「${one.name}」`:'WordLoopのバックアップ';
     if(NATIVE&&P.Filesystem&&P.Share){const r=await P.Filesystem.writeFile({path:name,data,directory:'CACHE',encoding:'utf8'});
-      try{await P.Share.share({title:'WordLoopのバックアップ',files:[r.uri],dialogTitle:'保存先・送信先を選んでください'})}catch(e){}}
+      try{await P.Share.share({title,files:[r.uri],dialogTitle:'保存先・送信先を選んでください'})}catch(e){}}
     else{const blob=new Blob([data],{type:'application/json'});
       const mobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform||''));
       if(mobile&&navigator.canShare&&typeof File==='function'){const file=new File([blob],name,{type:'application/json'});
-        if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'WordLoopのバックアップ'});toast('「ファイルに保存」などで保存してください');return}catch(e){if(e&&e.name==='AbortError')return}}}
+        if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title});toast('「ファイルに保存」などで保存してください');return}catch(e){if(e&&e.name==='AbortError')return;
+          if(e&&e.name==='NotAllowedError'){pendingShare={files:[file],title};openModal(`${mh('書き出しの準備ができました')}<p class="muted">下のボタンを押して、保存先や送り先を選んでください。</p><button class="btn primary wide" data-act="shareReady">${ICON.upload}共有・保存する</button>`);return}}}}
       const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),8000);toast('バックアップを書き出しました')}
   }catch(e){toast('書き出しに失敗しました')}}
 async function importBackup(file){
@@ -454,13 +459,14 @@ async function importBackup(file){
   let o;try{o=JSON.parse(await file.text())}catch(e){toast('バックアップファイルを読み込めませんでした');return}
   if(!o||o.app!=='WordLoop'||!Array.isArray(o.decks)){toast('WordLoopのバックアップファイルではありません');return}
   const decks=o.decks.map(cleanDeck).filter(Boolean),folders=(Array.isArray(o.folders)?o.folders:[]).map(cleanFolder).filter(Boolean);
-  confirmDlg('バックアップを読み込む',`単語帳${decks.length}冊・ファイル${folders.length}個を読み込みます。同じ単語帳・ファイルがある場合は、バックアップの内容で上書きされます。`,'読み込む',async()=>{
+  const single=o.kind==='deck'&&decks.length===1;
+  confirmDlg(single?'単語帳を読み込む':'バックアップを読み込む',single?`単語帳「${esc(decks[0].name)}」（${decks[0].words.length}語）を読み込みます。同じ単語帳がすでにある場合は、上書きされます。`:`単語帳${decks.length}冊・ファイル${folders.length}個を読み込みます。同じ単語帳・ファイルがある場合は、バックアップの内容で上書きされます。`,'読み込む',async()=>{
     try{const ph=o.photos&&typeof o.photos==='object'?o.photos:{};
       for(const[id,u]of Object.entries(ph)){if(!SAFE_ID.test(id)||typeof u!=='string'||u.length>20*1024*1024||!IMG_URL.test(u))continue;let b;try{b=dataURLToBlob(u)}catch(e){continue}await idbSet('photos',id,b);if(photoURL[id])URL.revokeObjectURL(photoURL[id]);photoURL[id]=URL.createObjectURL(b)}
       for(const f of folders){const i=S.folders.findIndex(x=>x.id===f.id);if(i>=0)S.folders[i]=f;else S.folders.push(f)}
       for(const d of decks){const i=S.decks.findIndex(x=>x.id===d.id);if(i>=0)S.decks[i]=d;else S.decks.push(d)}
-      S.foldersAt=Date.now();await writeNow();go({name:'home'});toast('バックアップを読み込みました')}catch(e){toast('読み込みに失敗しました')}})}
-document.addEventListener('change',e=>{if(e.target.id==='importFile'){const f=e.target.files&&e.target.files[0];e.target.value='';if(f)importBackup(f)}});
+      S.foldersAt=Date.now();await writeNow();if(single)go({name:'deck',id:decks[0].id,filter:'all',q:''});else go({name:'home'});toast(single?'単語帳を読み込みました':'バックアップを読み込みました')}catch(e){toast('読み込みに失敗しました')}})}
+document.addEventListener('change',e=>{if(e.target.id==='importFile'||e.target.id==='importFile2'){const f=e.target.files&&e.target.files[0];e.target.value='';if(f)importBackup(f)}});
 
 /* ---------- render ---------- */
 function render(){
@@ -544,14 +550,31 @@ function csvSplit(line){const out=[];let cur='',q=false;for(let i=0;i<line.lengt
     else if(ch===','||ch==='，'){out.push(cur);cur=''}
     else cur+=ch}
   out.push(cur);return out.map(s=>{s=s.trim();return/^'[=+@\t\r]/.test(s)?s.slice(1):s})}
-function parseLines(txt){const out=[];let seenLine=false;for(let line of txt.split(/\r?\n/)){line=line.trim();if(!line)continue;let t,m,n='';
+// "テーブル:主語//現在 n/ I//am" -> table   (cells: //, rows: n/, optional "テーブル(横1,縦1):")
+const TBL_RE=/^\s*(?:テーブル|table)\s*(?:[(（]([^)）]*)[)）])?\s*[:：]\s*/i;
+function parseTableText(s){const m=TBL_RE.exec(String(s||''));if(!m)return null;
+  const body=String(s).slice(m[0].length).replace(/ｎ／|Ｎ／|N\//g,'n/').replace(/／／/g,'//');
+  const rows=body.split('n/').map(r=>r.split('//').map(c=>c.trim()));
+  while(rows.length>1&&rows[rows.length-1].every(c=>!c))rows.pop();
+  const c=Math.max(1,...rows.map(r=>r.length));let hh=1,vv=0;
+  if(m[1]){const a=/横\s*(\d+)/.exec(m[1]),b=/縦\s*(\d+)/.exec(m[1]);if(a)hh=+a[1];if(b)vv=+b[1]}
+  return trimTbl(cleanTable({r:rows.length,c,cells:rows,th:{h:hh,v:vv}}))}
+function tableToText(t){if(!tblHas(t))return'';return(t.th.h===1&&t.th.v===0?'テーブル:':`テーブル(横${t.th.h} 縦${t.th.v}):`)+t.cells.map(r=>r.map(x=>String(x).replace(/\s*\n\s*/g,' ')).join('//')).join(' n/ ')}
+function parseLines(txt){const out=[];let seenLine=false;for(let line of txt.split(/\r?\n/)){line=line.trim();if(!line)continue;
+  line=line.replace(/((?:テーブル|table)\s*[(（])([^)）]*)(?=[)）])/gi,(a,p,q)=>p+q.replace(/[,，、]/g,' '));let t,m,n='';
   if(line.includes('\t')){const p=line.split('\t');t=p[0];m=p[1];n=p.slice(2).join(' ')}
   else if(/[,，]/.test(line)){const p=csvSplit(line);t=p[0];m=p[1];n=p.slice(2).filter(x=>x!=='').join(', ')}
   else{const r=line.match(/^(.+?)\s*(?:[:：=＝]|\s-\s)\s*(.+)$/)||line.match(/^([\x20-\x7E]+?)\s+([^\x00-\x7F].*)$/);if(r){t=r[1];m=r[2]}}
   t=(t||'').trim().replace(/^"|"$/g,'');m=(m||'').trim().replace(/^"|"$/g,'');
-  const header=!seenLine&&/^(単語|英単語|word|term|表|おもて|front)$/i.test(t);seenLine=true;if(t&&m&&!header)out.push({t,m,n:n.trim()})}return out}
+  const tt=parseTableText(t),mt=parseTableText(m);if(tt)t='';if(mt)m='';
+  const header=!seenLine&&/^(単語|英単語|word|term|表|おもて|front)$/i.test(t);seenLine=true;
+  if((t||tt)&&(m||mt)&&!header){const it={t,m,n:n.trim()};if(tt)it.tt=tt;if(mt)it.mt=mt;out.push(it)}}return out}
 function openBulk(){openModal(`<form id="bulkform">${mh('まとめて追加')}
   <p class="muted">1行に1枚ずつ。「表,裏」または「表,裏,メモ」の形で入力します。「表:裏」やタブ区切りにも対応。Excelやスプレッドシートの2〜3列（3列目はメモ）をそのまま貼り付けできます。</p>
+  <details class="tblhelp"><summary>${ICON.table}テーブルをまとめて追加するには</summary>
+    <p>表や裏の欄を <b>テーブル:</b> で始めると、テーブルになります。マスは <b>//</b>、行は <b>n/</b> で区切ります。</p>
+    <code>be動詞,テーブル:主語//現在//過去 n/ I//am//was n/ you//are//were</code>
+    <p>太線の位置は <b>テーブル(横1,縦1):</b> のように指定できます（横＝何行目の下、縦＝何列目の右、0でなし。省略すると横1）。</p></details>
   <label class="fld"><textarea name="txt" id="bulktxt" rows="9" placeholder="apple,りんご&#10;日本,東京,首都&#10;1192年,鎌倉幕府,いいくにつくろう" autofocus></textarea></label>
   <div class="mf"><button class="btn primary" type="submit" id="bulkbtn">0語を追加</button></div></form>`)}
 function openSetup(){const d=cur();if(!d.words.length){toast('まず単語を追加してください');return}
@@ -574,7 +597,7 @@ function updStart(){const b=$('#startbtn'),d=cur();if(!b||!d)return;const n=Math
 function startSession(mode,ids){const d=cur()||deckById(sess&&sess.deckId);
   sess={mode,deckId:d.id,items:ids,i:0,dir:mode==='type'?'mt':prefs.dir,res:[],flipped:false,picked:null,optsFor:-1,typed:null,hint:false,lock:false,back:(view.name==='deck'&&view.filter!==undefined)?{...view}:(sess&&sess.back)||{name:'deck',id:d.id}};
   go({name:'study',id:d.id})}
-function csvOf(d){const q=s=>{s=String(s);if(/^[=+@\t\r]/.test(s))s="'"+s;return/[",\n']/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};return d.words.map(w=>[w.t,w.m,w.n].map(q).join(',').replace(/,$/,'')).join('\n')}
+function csvOf(d){const q=s=>{s=String(s);if(/^[=+@\t\r]/.test(s))s="'"+s;return/[",\n']/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};return d.words.map(w=>[w.t||tableToText(w.tt),w.m||tableToText(w.mt),w.n].map(q).join(',').replace(/,$/,'')).join('\n')}
 
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2300)}
 
@@ -587,7 +610,7 @@ const ACT={
   home(){go({name:'home'})},
   openDeck(el){prefs.lastDeck=el.dataset.id;savePrefs();go({name:'deck',id:el.dataset.id,filter:'all',q:''})},
   newDeck(){openDeckForm(null)},
-  newItem(){openModal(`${mh('新規作成')}<div class="menu big"><button data-act="newDeck"><span class="mi">${ICON.cards}</span><span>新しい単語帳<small>単語を登録して学習する</small></span></button><button data-act="newFolder"><span class="mi" ${miStyle('#8B5CF6')}>${ICON.folder}</span><span>新しいファイル<small>同じ種類の単語帳をまとめる</small></span></button></div>`)},
+  newItem(){openModal(`${mh('新規作成')}<div class="menu big"><button data-act="newDeck"><span class="mi">${ICON.cards}</span><span>新しい単語帳<small>単語を登録して学習する</small></span></button><button data-act="newFolder"><span class="mi" ${miStyle('#8B5CF6')}>${ICON.folder}</span><span>新しいファイル<small>同じ種類の単語帳をまとめる</small></span></button><label class="menuitem"><span class="mi" ${miStyle('#2DD4BF')}>${ICON.reset}</span><span>ファイルから読み込む<small>書き出した単語帳・バックアップを追加</small></span><input type="file" id="importFile2" accept=".json,application/json" hidden></label></div>`)},
   newFolder(){openFolderForm(null)},
   newDeckHere(){openDeckForm(null,view.name==='folder'?view.id:null)},
   openFolder(el){go({name:'folder',id:el.dataset.id})},
@@ -602,7 +625,7 @@ const ACT={
   newFolderMove(el){openFolderForm(null,el.dataset.id)},
   moveHere(el){const d=deckById(el.dataset.id);if(!d)return;d.folder=el.dataset.f;saveDeck(d);render();openAddToFolder(el.dataset.f);toast(`「${d.name}」を移動しました`)},
   sample(){const d={id:'d'+rid(),name:'サンプル：基本英単語',color:COLORS[0],lang:{t:'en-US',m:'ja-JP'},createdAt:Date.now(),updatedAt:0,words:SAMPLE.map(([t,m,n])=>cleanWord({id:'w'+rid(),t,m,n}))};S.decks.push(d);saveDeck(d);go({name:'deck',id:d.id,filter:'all',q:''})},
-  deckMenu(el){menuDeck=(el&&el.dataset.id)||view.id;const d=deckById(menuDeck);if(!d)return;openModal(`${mh(esc(d.name))}<div class="menu"><button data-act="renameDeck">${ICON.edit}名前・カラー・読み上げ言語</button><button data-act="moveDeck">${ICON.move}ファイルに移動</button><button data-act="copyCsv">${ICON.copy}単語をCSVでコピー</button><button data-act="resetStats">${ICON.reset}学習記録をリセット</button><button class="danger" data-act="delDeck">${ICON.trash}単語帳を削除</button></div>`)},
+  deckMenu(el){menuDeck=(el&&el.dataset.id)||view.id;const d=deckById(menuDeck);if(!d)return;openModal(`${mh(esc(d.name))}<div class="menu"><button data-act="renameDeck">${ICON.edit}名前・カラー・読み上げ言語</button><button data-act="moveDeck">${ICON.move}ファイルに移動</button><button data-act="exportDeck">${ICON.upload}この単語帳をファイルで書き出す</button><button data-act="copyCsv">${ICON.copy}単語をCSVでコピー</button><button data-act="resetStats">${ICON.reset}学習記録をリセット</button><button class="danger" data-act="delDeck">${ICON.trash}単語帳を削除</button></div>`)},
   renameDeck(){openDeckForm(menuDeck||view.id)},
   copyCsv(){const d=tgtDeck(),txt=csvOf(d);if(!d.words.length){toast('単語がありません');return}
     const fallback=()=>{openModal(`${mh('CSV')}<p class="muted">下のテキストを選択してコピーしてください。</p><textarea class="copy" readonly>${esc(txt)}</textarea>`)};
@@ -647,6 +670,8 @@ const ACT={
   closeModal(){modalCb=null;wf=null;closeModal()},
   settings(){refreshNativePerm().then(()=>{const n=$('#remindNote');if(n)n.innerHTML=remindNote()});openSettings()},
   exportBackup(){exportBackup()},
+  exportDeck(){const d=tgtDeck();if(!d)return;closeModal();exportBackup(d.id)},
+  shareReady(){const ps=pendingShare;pendingShare=null;closeModal();if(!ps)return;navigator.share(ps).then(()=>toast('「ファイルに保存」などで保存してください')).catch(()=>{})},
   align(el){prefs.align=el.dataset.val;savePrefs();applyTheme();el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))},
   theme(el){prefs.theme=el.dataset.val;savePrefs();applyTheme();el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))},
   testSound(){playSfx(true,true);setTimeout(()=>speak('Hello','','en-US'),450)},
