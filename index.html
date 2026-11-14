@@ -275,6 +275,10 @@ html.lock,html.lock body{height:100%;overflow:hidden;overscroll-behavior:none}
   .sheet{bottom:auto;top:50%;border-radius:26px;width:min(480px,92vw);transform:translate(-50%,-44%);opacity:0;padding-bottom:20px}
   #modal.show .sheet{transform:translate(-50%,-50%);opacity:1}
 }
+.sheet.pull{overscroll-behavior:contain;translate:0 var(--pull,0px)}
+.sheet.pull.snap{transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .25s,translate .22s cubic-bezier(.2,.8,.2,1)}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:-6px auto 10px}
+@media (min-width:640px){.grab{display:none}}
 .mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .mh h3{margin:0;font-size:18px;font-weight:700}
 .mh .icon{margin-right:-8px}

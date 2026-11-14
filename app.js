@@ -413,7 +413,7 @@ function remindNote(){if(!prefs.remind)return'オンにすると、決まった�
     :`この表示環境では端末への通知が使えないため、${esc(prefs.remindAt)} を過ぎてもその日の学習がまだのときに、ホーム画面でお知らせします。`}
 function openSettings(){
   const th=prefs.theme==='light'?'light':'dark';
-  openModal(`${mh('設定')}
+  openModal(`<div class="grab" aria-hidden="true"></div>${mh('設定')}
   <div class="set-sec"><h4>${ICON.palette}色調</h4><div class="seg"><button type="button" class="${th==='dark'?'on':''}" data-act="theme" data-val="dark">${ICON.moon}ダーク</button><button type="button" class="${th==='light'?'on':''}" data-act="theme" data-val="light">${ICON.sun}ホワイト</button></div></div>
   <div class="set-sec"><h4>${ICON.cards}カードの文字の配置</h4><div class="seg">${[['left','左詰め','0'],['center','中央','50%'],['right','右詰め','100%']].map(([v,l,x])=>`<button type="button" class="${(prefs.align||'center')===v?'on':''}" data-act="align" data-val="${v}"><i class="al" style="--x:${x}"></i>${l}</button>`).join('')}</div><p class="muted">カードとテストの問題に表示する文字の位置です。</p></div>
   <div class="set-sec"><h4>${ICON.sound}音量</h4>
@@ -428,7 +428,7 @@ function openSettings(){
   <div class="set-sec"><h4>${ICON.upload}バックアップ</h4>
     <div class="mf" style="margin-top:0"><button type="button" class="btn ghost" data-act="exportBackup">${ICON.upload}書き出す</button><label class="btn ghost" style="cursor:pointer">${ICON.reset}読み込む<input type="file" id="importFile" accept=".json,application/json" hidden></label></div>
     <p class="muted">単語帳・ファイル・写真をまとめて1つのファイルに保存します。機種変更や、アプリを入れ直すときに使ってください。データはこのスマホの中だけに保存されているため、アプリを削除すると消えます。</p></div>
-  <p class="muted" id="appver" style="text-align:center;margin-top:18px;opacity:.7"></p>`);showVer()}
+  <p class="muted" id="appver" style="text-align:center;margin-top:18px;opacity:.7"></p>`);const sh=$('#modal .sheet');if(sh)sh.classList.add('pull');showVer()}
 function showVer(){try{if(!('caches' in window))return;caches.keys().then(k=>{const v=k.map(x=>/^wordloop-v(\d+)$/.exec(x)).filter(Boolean).map(m=>+m[1]).sort((a,b)=>b-a)[0];const el=$('#appver');if(el&&v)el.textContent='WordLoop バージョン '+v}).catch(()=>{})}catch(e){}}
 function updRemindUI(){if(view.name==='home')render();const f=$('#remindfld');if(f)f.style.display=prefs.remind?'':'none';const n=$('#remindNote');if(n)n.innerHTML=remindNote()}
 document.addEventListener('input',e=>{if(e.target.id==='vol'){prefs.vol=+e.target.value;const b=$('#volv');if(b)b.textContent=prefs.vol;savePrefs()}});
@@ -486,6 +486,17 @@ function render(){
 let modalCb=null,modalTimer=null;
 function openModal(html){setTimeout(growAll,30);clearTimeout(modalTimer);const m=$('#modal');m.innerHTML=`<div class="scrim" data-act="closeModal"></div><div class="sheet" role="dialog" aria-modal="true">${html}</div>`;m.classList.add('open');
   requestAnimationFrame(()=>requestAnimationFrame(()=>m.classList.add('show')));const f=m.querySelector('[autofocus]');if(f)setTimeout(()=>f.focus(),60)}
+/* pull the settings sheet down (from its top) to close it */
+(function(){let y0=0,x0=0,t0=0,dy=0,st=0,drag=false,live=false,sh=null;
+  document.addEventListener('touchstart',e=>{sh=e.target.closest&&e.target.closest('#modal.show .sheet.pull');live=false;drag=false;dy=0;
+    if(!sh||e.touches.length>1||e.target.closest('input[type=range]'))return;
+    y0=e.touches[0].clientY;x0=e.touches[0].clientX;t0=Date.now();st=sh.scrollTop;live=st<=0},{passive:true});
+  document.addEventListener('touchmove',e=>{if(!live||!sh)return;const t=e.touches[0];const d=t.clientY-y0,dx=t.clientX-x0;
+    if(!drag){if(sh.scrollTop>0||d<0||(Math.abs(dx)>Math.abs(d)&&Math.abs(dx)>6)){live=false;return}if(d<8)return;drag=true;y0=t.clientY;sh.classList.remove('snap')}
+    dy=Math.max(0,t.clientY-y0);e.preventDefault();sh.style.setProperty('--pull',dy+'px')},{passive:false});
+  const end=()=>{if(!drag||!sh){live=false;return}drag=false;live=false;const v=dy/Math.max(1,Date.now()-t0);sh.classList.add('snap');
+    if(dy>90||(dy>30&&v>.5)){ACT.closeModal()}else sh.style.setProperty('--pull','0px')};
+  document.addEventListener('touchend',end);document.addEventListener('touchcancel',end)})();
 function closeModal(){const m=$('#modal');m.classList.remove('show');modalTimer=setTimeout(()=>{m.classList.remove('open');m.innerHTML=''},230)}
 const mh=t=>`<div class="mh"><h3>${t}</h3><button type="button" class="icon" data-act="closeModal" aria-label="閉じる">${ICON.x}</button></div>`;
 function confirmDlg(title,msg,label,cb){modalCb=cb;openModal(`${mh(title)}<p class="muted">${msg}</p><div class="mf"><button class="btn ghost" data-act="closeModal">キャンセル</button><button class="btn primary" style="background:var(--ng)" data-act="confirmOk">${label}</button></div>`)}
@@ -804,14 +815,29 @@ document.addEventListener('touchend',tEnd);document.addEventListener('touchcance
 document.addEventListener('contextmenu',e=>{if(drag||rowAt(e.target))e.preventDefault()});
 
 /* ---------- Android back button ---------- */
+/* one step back: close a sheet, or go to the previous screen. false = already on the first screen */
+function appBack(){
+  if($('#modal').classList.contains('show')){ACT.closeModal();return true}
+  if(view.name==='study'){ACT.quit();return true}
+  if(view.name==='result'){ACT.backDeck();return true}
+  if(view.name==='deck'){ACT.deckBack();return true}
+  if(view.name==='folder'){go({name:'home'});return true}
+  return false}
+/* PWA / browser: keep one history entry above the first screen so the phone's back button
+   (or back gesture) steps back inside the app instead of closing it */
+if(!NATIVE){
+  let navTrap=false,navModal=false;
+  const atRoot=()=>view.name==='home'&&!navModal;
+  const syncNav=()=>{try{if(!atRoot()&&!navTrap){history.pushState({wl:1},'');navTrap=true}}catch(e){}};
+  const _render=render,_open=openModal,_close=closeModal;
+  render=function(){_render.apply(this,arguments);syncNav()};
+  openModal=function(){navModal=true;_open.apply(this,arguments);syncNav()};
+  closeModal=function(){navModal=false;_close.apply(this,arguments);syncNav()};
+  // back pressed: step back inside the app; on the first screen, let it through (closes the app)
+  addEventListener('popstate',()=>{navTrap=false;if(appBack())syncNav();else{try{history.back()}catch(e){}}});
+}
 if(NATIVE&&P.App){
-  P.App.addListener('backButton',()=>{
-    if($('#modal').classList.contains('open')){ACT.closeModal();return}
-    if(view.name==='study'){ACT.quit();return}
-    if(view.name==='result'){ACT.backDeck();return}
-    if(view.name==='deck'){ACT.deckBack();return}
-    if(view.name==='folder'){go({name:'home'});return}
-    P.App.exitApp()});
+  P.App.addListener('backButton',()=>{if(!appBack())P.App.exitApp()});
   P.App.addListener('resume',()=>{nativeRemind();if(view.name==='home')render()});
 }
 /* ---------- boot ---------- */
