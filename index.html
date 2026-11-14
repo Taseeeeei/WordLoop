@@ -60,6 +60,16 @@ svg.i .f{fill:currentColor;stroke:none}
 .hero{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 24px}
 .stat{background:var(--surface);border-radius:18px;padding:14px 13px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:flex-start}
 .stat span{font-size:28px;font-weight:700;line-height:1.1}
+button.stat{border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:transform .12s,background .15s;-webkit-tap-highlight-color:transparent}
+button.stat:active{transform:scale(.97)}
+.stat small{display:inline-flex;align-items:center;gap:2px}.stat small svg.i{width:13px;height:13px;opacity:.7}
+.sl-n{font-size:13px;color:var(--muted);font-weight:600;margin-left:8px}
+.sl-deck{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--muted);margin:14px 2px 6px}
+.sl-deck i{width:10px;height:10px;border-radius:3px;flex:none}
+.sl-wrap>.sl-deck:first-child{margin-top:0}
+.words.sl{border-radius:16px;overflow:hidden;margin:0}
+.words.sl .word{padding-left:12px}
+.sl-time{font-size:12px;color:var(--muted);flex:none}
 .stat small{font-size:12px;color:var(--muted);margin-top:4px}
 .stat:first-child span{background:linear-gradient(180deg,#BFE0FF,#4F95FF);-webkit-background-clip:text;background-clip:text;color:transparent}
 h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 4px 10px;letter-spacing:.08em}

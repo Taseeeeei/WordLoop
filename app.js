@@ -180,14 +180,25 @@ function go(v){view=v;render();window.scrollTo(0,0)}
 /* ---------- views ---------- */
 function ring(p,size,stroke,color){const r=(size-stroke)/2,c=2*Math.PI*r,h=size/2;return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${h}" cy="${h}" r="${r}" stroke="var(--surface2)" stroke-width="${stroke}" fill="none"/><circle cx="${h}" cy="${h}" r="${r}" stroke="${color}" stroke-width="${stroke}" fill="none" stroke-linecap="round" style="filter:drop-shadow(0 0 6px ${color});transition:stroke-dashoffset .6s" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c*(1-p/100)).toFixed(2)}" transform="rotate(-90 ${h} ${h})"/></svg>`}
 
+function dayStart(){const d=new Date();d.setHours(0,0,0,0);return d.getTime()}
+function todayWords(){const t=dayStart(),o=[];for(const d of S.decks)for(const w of d.words)if(w.lt>=t)o.push({d,w});return o.sort((a,b)=>b.w.lt-a.w.lt)}
+const STAT_LISTS={all:['登録単語','まだ単語がありません'],mas:['覚えた単語','まだ「覚えた」にした単語はありません'],today:['今日学習した単語','今日はまだ学習していません']};
+function openStatList(kind){const [title,empty]=STAT_LISTS[kind]||STAT_LISTS.all;
+  let rows=kind==='today'?todayWords():[];if(kind!=='today')for(const d of S.decks)for(const w of d.words)if(kind==='all'||w.mas)rows.push({d,w});
+  const side=(t,tb,img)=>t?esc(t):tblHas(tb)?`<span class="muted-lbl">${esc(tblSum(tb))}</span>`:img?'<span class="muted-lbl">（写真）</span>':'';
+  let body='',last=null;
+  for(const {d,w} of rows){if(d!==last){if(last)body+='</ul>';body+=`<div class="sl-deck"><i style="background:${esc(d.color||'var(--accent)')}"></i>${esc(d.name)}</div><ul class="words sl">`;last=d}
+    body+=`<li class="word" data-act="statWord" data-deck="${d.id}" data-id="${w.id}"><span class="dot ${w.mas?'done':weak(w)?'weak':''}"></span><div class="wt"><b>${side(w.t,w.tt,w.ti)}${tblHas(w.tt)||tblHas(w.mt)?'<span class="tbtag">テーブル</span>':''}</b><span class="mean">${side(w.m,w.mt,w.mi)}</span></div>${kind==='today'?`<small class="sl-time">${new Date(w.lt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</small>`:''}</li>`}
+  if(last)body+='</ul>';
+  openModal(`${mh(`${title}<small class="sl-n">${rows.length}語</small>`)}${rows.length?`<div class="sl-wrap">${body}</div>`:`<div class="nolist">${empty}</div>`}`);pullable()}
 function renderHome(){
   const tot=S.decks.reduce((a,d)=>a+d.words.length,0),mas=S.decks.reduce((a,d)=>a+d.words.filter(w=>w.mas).length,0);
   return`<header class="top"><div class="brand"><img class="logo" src="icon.png" alt=""><b>WordLoop</b></div>${syncPill()}<button class="icon" data-act="settings" aria-label="設定" title="設定">${ICON.gear}</button></header>
   <main class="pad">
     <section class="hero">
-      <div class="stat"><span>${tot}</span><small>登録単語</small></div>
-      <div class="stat"><span>${mas}</span><small>覚えた</small></div>
-      <div class="stat"><span>${getToday()}</span><small>今日の学習</small></div>
+      <button type="button" class="stat" data-act="statList" data-val="all"><span>${tot}</span><small>登録単語${ICON.fwd}</small></button>
+      <button type="button" class="stat" data-act="statList" data-val="mas"><span>${mas}</span><small>覚えた${ICON.fwd}</small></button>
+      <button type="button" class="stat" data-act="statList" data-val="today"><span>${todayWords().length}</span><small>今日の学習${ICON.fwd}</small></button>
     </section>
     ${remindDue()?`<div class="remind">${ICON.bell}<div><b>今日の学習がまだです</b><small>${esc(prefs.remindAt)} のリマインダー</small></div>${S.decks.length?`<button class="btn primary sm" data-act="resume">学習する</button>`:''}</div>`:''}
     ${homeLists()}
@@ -309,11 +320,13 @@ function record(ok){
 function nextQ(){clearTimeout(sess.timer);sess.i++;sess.flipped=false;sess.picked=null;sess.typed=null;sess.hint=false;sess.lock=false;
   if(sess.i>=sess.items.length){go({name:'result',id:sess.deckId});return}render()}
 function flip(){const f=$('#flip');if(!f)return;sess.flipped=!sess.flipped;f.classList.toggle('on',sess.flipped);cardOv()}
+function markSeen(){try{const w=curWord(),d=deckById(sess.deckId);if(w&&d){w.lt=Date.now();saveDeck(d)}}catch(e){}}
 function cardGo(delta,swipe){if(!sess||sess.lock)return;const ni=sess.i+delta,c=$('#card');
-  if(ni<0||ni>=sess.items.length){if(ni>=sess.items.length&&!swipe){go(sess.back);return}
+  if(ni<0||ni>=sess.items.length){if(ni>=sess.items.length&&!swipe){markSeen();go(sess.back);return}
     if(c){c.style.transition='transform .2s';c.style.transform='';c.classList.remove('bump','in-r','in-l');void c.offsetWidth;c.classList.add('bump')}toast(ni<0?'最初のカードです':'最後のカードです');return}
   sess.lock=true;
   if(c){c.style.transition='transform .2s cubic-bezier(.4,0,1,1)';c.style.transform=`translateX(${delta>0?-110:110}%)`}
+  if(delta>0)markSeen();
   setTimeout(()=>{if(delta>0)bumpToday();sess.i=ni;sess.flipped=false;sess.lock=false;sess.enter=delta>0?'in-r':'in-l';render()},170)}
 function pick(i){if(sess.picked!=null||!sess.opts[i])return;const w=curWord();sess.picked=i;const ok=sess.opts[i].id===w.id;record(ok);playSfx(ok);render();if(ok)sess.timer=setTimeout(nextQ,750)}
 const norm=s=>String(s).normalize('NFKC').toLowerCase().replace(/[.,!?;:'"’‘“”]/g,'').replace(/\s+/g,' ').trim();
@@ -413,7 +426,7 @@ function remindNote(){if(!prefs.remind)return'オンにすると、決まった�
     :`この表示環境では端末への通知が使えないため、${esc(prefs.remindAt)} を過ぎてもその日の学習がまだのときに、ホーム画面でお知らせします。`}
 function openSettings(){
   const th=prefs.theme==='light'?'light':'dark';
-  openModal(`<div class="grab" aria-hidden="true"></div>${mh('設定')}
+  openModal(`${mh('設定')}
   <div class="set-sec"><h4>${ICON.palette}色調</h4><div class="seg"><button type="button" class="${th==='dark'?'on':''}" data-act="theme" data-val="dark">${ICON.moon}ダーク</button><button type="button" class="${th==='light'?'on':''}" data-act="theme" data-val="light">${ICON.sun}ホワイト</button></div></div>
   <div class="set-sec"><h4>${ICON.cards}カードの文字の配置</h4><div class="seg">${[['left','左詰め','0'],['center','中央','50%'],['right','右詰め','100%']].map(([v,l,x])=>`<button type="button" class="${(prefs.align||'center')===v?'on':''}" data-act="align" data-val="${v}"><i class="al" style="--x:${x}"></i>${l}</button>`).join('')}</div><p class="muted">カードとテストの問題に表示する文字の位置です。</p></div>
   <div class="set-sec"><h4>${ICON.sound}音量</h4>
@@ -428,7 +441,7 @@ function openSettings(){
   <div class="set-sec"><h4>${ICON.upload}バックアップ</h4>
     <div class="mf" style="margin-top:0"><button type="button" class="btn ghost" data-act="exportBackup">${ICON.upload}書き出す</button><label class="btn ghost" style="cursor:pointer">${ICON.reset}読み込む<input type="file" id="importFile" accept=".json,application/json" hidden></label></div>
     <p class="muted">単語帳・ファイル・写真をまとめて1つのファイルに保存します。機種変更や、アプリを入れ直すときに使ってください。データはこのスマホの中だけに保存されているため、アプリを削除すると消えます。</p></div>
-  <p class="muted" id="appver" style="text-align:center;margin-top:18px;opacity:.7"></p>`);const sh=$('#modal .sheet');if(sh)sh.classList.add('pull');showVer()}
+  <p class="muted" id="appver" style="text-align:center;margin-top:18px;opacity:.7"></p>`);pullable();showVer()}
 function showVer(){try{if(!('caches' in window))return;caches.keys().then(k=>{const v=k.map(x=>/^wordloop-v(\d+)$/.exec(x)).filter(Boolean).map(m=>+m[1]).sort((a,b)=>b-a)[0];const el=$('#appver');if(el&&v)el.textContent='WordLoop バージョン '+v}).catch(()=>{})}catch(e){}}
 function updRemindUI(){if(view.name==='home')render();const f=$('#remindfld');if(f)f.style.display=prefs.remind?'':'none';const n=$('#remindNote');if(n)n.innerHTML=remindNote()}
 document.addEventListener('input',e=>{if(e.target.id==='vol'){prefs.vol=+e.target.value;const b=$('#volv');if(b)b.textContent=prefs.vol;savePrefs()}});
@@ -492,11 +505,12 @@ function openModal(html){setTimeout(growAll,30);clearTimeout(modalTimer);const m
     if(!sh||e.touches.length>1||e.target.closest('input[type=range]'))return;
     y0=e.touches[0].clientY;x0=e.touches[0].clientX;t0=Date.now();st=sh.scrollTop;live=st<=0},{passive:true});
   document.addEventListener('touchmove',e=>{if(!live||!sh)return;const t=e.touches[0];const d=t.clientY-y0,dx=t.clientX-x0;
-    if(!drag){if(sh.scrollTop>0||d<0||(Math.abs(dx)>Math.abs(d)&&Math.abs(dx)>6)){live=false;return}if(d<8)return;drag=true;y0=t.clientY;sh.classList.remove('snap')}
+    if(!drag){if(sh.scrollTop>0||d<0||(Math.abs(dx)>Math.abs(d)&&Math.abs(dx)>6)){live=false;return}if(d>0&&d>=Math.abs(dx))e.preventDefault();if(d<8)return;drag=true;y0=t.clientY;sh.classList.remove('snap')}
     dy=Math.max(0,t.clientY-y0);e.preventDefault();sh.style.setProperty('--pull',dy+'px')},{passive:false});
   const end=()=>{if(!drag||!sh){live=false;return}drag=false;live=false;const v=dy/Math.max(1,Date.now()-t0);sh.classList.add('snap');
     if(dy>90||(dy>30&&v>.5)){ACT.closeModal()}else sh.style.setProperty('--pull','0px')};
   document.addEventListener('touchend',end);document.addEventListener('touchcancel',end)})();
+function pullable(){const sh=$('#modal .sheet');if(!sh)return;sh.classList.add('pull');if(!sh.querySelector('.grab'))sh.insertAdjacentHTML('afterbegin','<div class="grab" aria-hidden="true"></div>')}
 function closeModal(){const m=$('#modal');m.classList.remove('show');modalTimer=setTimeout(()=>{m.classList.remove('open');m.innerHTML=''},230)}
 const mh=t=>`<div class="mh"><h3>${t}</h3><button type="button" class="icon" data-act="closeModal" aria-label="閉じる">${ICON.x}</button></div>`;
 function confirmDlg(title,msg,label,cb){modalCb=cb;openModal(`${mh(title)}<p class="muted">${msg}</p><div class="mf"><button class="btn ghost" data-act="closeModal">キャンセル</button><button class="btn primary" style="background:var(--ng)" data-act="confirmOk">${label}</button></div>`)}
@@ -597,7 +611,7 @@ function openSetup(){const d=cur();if(!d.words.length){toast('まず単語を追
    <div class="fld"><span>出題順</span>${seg('order',[['rand','ランダム'],['seq','登録順']])}</div>
    <div class="fld" id="dirfld" style="${prefs.tmode==='type'?'display:none':''}"><span>出題の向き</span>${seg('dir',[['tm','表 → 裏'],['mt','裏 → 表']])}</div>
    <div class="fld"><span>問題数</span>${seg('count',[['10','10'],['20','20'],['50','50'],['all','すべて']])}</div>
-   <button class="btn primary wide" data-act="start" id="startbtn" style="margin-top:4px"></button></div>`);updStart()}
+   <button class="btn primary wide" data-act="start" id="startbtn" style="margin-top:4px"></button></div>`);pullable();updStart()}
 function startCard(){const d=cur(),list=visibleWords(d);
   if(!list.length){toast(d.words.length?'表示中の単語がありません':'まず単語を追加してください');return}
   sess={mode:'card',deckId:d.id,items:list.map(w=>w.id),i:0,dir:prefs.cardDir,res:[],flipped:false,lock:false,enter:'',back:{...view}};
@@ -652,6 +666,8 @@ const ACT={
     view.sort=s;render()},
   reveal(el,e){if(!prefs.red){ACT.editWord(el.closest('.word'));return}el.closest('.word').classList.toggle('rv')},
   editWord(el){openWordModal(el.dataset.id)},
+  statList(el){openStatList(el.dataset.val)},
+  statWord(el){const d=deckById(el.dataset.deck);if(!d)return;closeModal();prefs.lastDeck=d.id;savePrefs();go({name:'deck',id:d.id,filter:'all',q:''});setTimeout(()=>{if(d.words.some(w=>w.id===el.dataset.id))openWordModal(el.dataset.id)},260)},
   addWord(){openWordModal(null)},
   star(el){const d=cur(),w=d.words.find(x=>x.id===el.dataset.id);if(!w)return;w.star=!w.star;saveDeck(d);if(view.filter==='star')render();else{el.classList.toggle('on',w.star);const ch=document.querySelector('.chip[data-f="star"] i');if(ch)ch.textContent=d.words.filter(x=>x.star).length}},
   toggleMas(el){const d=deckById(sess.deckId),w=curWord();if(!d||!w)return;w.mas=!w.mas;saveDeck(d);el.classList.toggle('on',w.mas);el.setAttribute('aria-pressed',String(w.mas));const s=el.querySelector('span');if(s)s.textContent=w.mas?'覚えた':'覚えていない'},
