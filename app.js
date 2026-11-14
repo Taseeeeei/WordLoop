@@ -543,39 +543,32 @@ function openWordModal(id){const d=cur(),w=id?d.words.find(x=>x.id===id):null;
   <label class="fld"><span>メモ・例文<i>任意 ・ カードの裏に表示</i></span><textarea name="n" rows="2">${esc(w?w.n:'')}</textarea></label>
   ${w?`<div class="toggle-row">覚えた<label class="switch"><input type="checkbox" name="mas" ${w.mas?'checked':''}><span></span></label></div><div class="wstat">正解 ${w.c}回 ・ 不正解 ${w.w}回</div>`:''}
   <div class="mf">${w?`<button type="button" class="btn ghost danger" data-act="delWord" data-id="${w.id}">${ICON.trash}削除</button>`:`<button type="submit" class="btn ghost" name="more" value="1">続けて追加</button>`}<button type="submit" class="btn primary">保存</button></div></form>`)}
-// one CSV line -> fields ("…" quoting and "" escapes supported; , or ， separates)
-function csvSplit(line){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const ch=line[i];
-    if(q){if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}
-    else if(ch==='"'&&!cur.trim())q=true;
-    else if(ch===','||ch==='，'){out.push(cur);cur=''}
-    else cur+=ch}
-  out.push(cur);return out.map(s=>{s=s.trim();return/^'[=+@\t\r]/.test(s)?s.slice(1):s})}
-// "テーブル:主語//現在 n/ I//am" -> table   (cells: //, rows: n/, optional "テーブル(横1,縦1):")
-const TBL_RE=/^\s*(?:テーブル|table)\s*(?:[(（]([^)）]*)[)）])?\s*[:：]\s*/i;
-function parseTableText(s){const m=TBL_RE.exec(String(s||''));if(!m)return null;
-  const body=String(s).slice(m[0].length).replace(/ｎ／|Ｎ／|N\//g,'n/').replace(/／／/g,'//');
+// "be動詞の活用 テーブル:主語//現在 n/ I//am" -> text "be動詞の活用" + table   (cells: //, rows: n/, optional "テーブル(横1,縦1):")
+const TBL_RE=/(?:テーブル|^table)\s*(?:[(（]([^)）]*)[)）])?\s*[:：]/i;
+function parseSide(s){s=String(s||'').trim();const m=TBL_RE.exec(s);if(!m)return{text:s,tbl:null};
+  const body=s.slice(m.index+m[0].length).replace(/ｎ／|Ｎ／|N\//g,'n/').replace(/／／/g,'//');
   const rows=body.split('n/').map(r=>r.split('//').map(c=>c.trim()));
   while(rows.length>1&&rows[rows.length-1].every(c=>!c))rows.pop();
   const c=Math.max(1,...rows.map(r=>r.length));let hh=1,vv=0;
   if(m[1]){const a=/横\s*(\d+)/.exec(m[1]),b=/縦\s*(\d+)/.exec(m[1]);if(a)hh=+a[1];if(b)vv=+b[1]}
-  return trimTbl(cleanTable({r:rows.length,c,cells:rows,th:{h:hh,v:vv}}))}
-function tableToText(t){if(!tblHas(t))return'';return(t.th.h===1&&t.th.v===0?'テーブル:':`テーブル(横${t.th.h} 縦${t.th.v}):`)+t.cells.map(r=>r.map(x=>String(x).replace(/\s*\n\s*/g,' ')).join('//')).join(' n/ ')}
+  const tbl=trimTbl(cleanTable({r:rows.length,c,cells:rows,th:{h:hh,v:vv}}));
+  return{text:s.slice(0,m.index).trim(),tbl:tblHas(tbl)?tbl:null}}
+function tableToText(t){if(!tblHas(t))return'';return(t.th.h===1&&t.th.v===0?'テーブル:':`テーブル(横${t.th.h},縦${t.th.v}):`)+t.cells.map(r=>r.map(x=>String(x).replace(/\s*\n\s*/g,' ')).join('//')).join(' n/ ')}
+// one line = 表 | 裏 | メモ   ("｜" also works; spreadsheet paste = tab-separated)
+const SEP='|';
 function parseLines(txt){const out=[];let seenLine=false;for(let line of txt.split(/\r?\n/)){line=line.trim();if(!line)continue;
-  line=line.replace(/((?:テーブル|table)\s*[(（])([^)）]*)(?=[)）])/gi,(a,p,q)=>p+q.replace(/[,，、]/g,' '));let t,m,n='';
-  if(line.includes('\t')){const p=line.split('\t');t=p[0];m=p[1];n=p.slice(2).join(' ')}
-  else if(/[,，]/.test(line)){const p=csvSplit(line);t=p[0];m=p[1];n=p.slice(2).filter(x=>x!=='').join(', ')}
-  else{const r=line.match(/^(.+?)\s*(?:[:：=＝]|\s-\s)\s*(.+)$/)||line.match(/^([\x20-\x7E]+?)\s+([^\x00-\x7F].*)$/);if(r){t=r[1];m=r[2]}}
-  t=(t||'').trim().replace(/^"|"$/g,'');m=(m||'').trim().replace(/^"|"$/g,'');
-  const tt=parseTableText(t),mt=parseTableText(m);if(tt)t='';if(mt)m='';
-  const header=!seenLine&&/^(単語|英単語|word|term|表|おもて|front)$/i.test(t);seenLine=true;
-  if((t||tt)&&(m||mt)&&!header){const it={t,m,n:n.trim()};if(tt)it.tt=tt;if(mt)it.mt=mt;out.push(it)}}return out}
+  const p=line.includes('\t')?line.split('\t'):line.split(/[|｜]/);if(p.length<2)continue;
+  const q=s=>String(s||'').trim().replace(/^"(.*)"$/s,'$1').replace(/""/g,'"');
+  const F=parseSide(q(p[0])),B=parseSide(q(p[1])),n=p.slice(2).map(q).filter(Boolean).join(' ');
+  const header=!seenLine&&!F.tbl&&/^(単語|英単語|word|term|表|おもて|front)$/i.test(F.text);seenLine=true;
+  if((F.text||F.tbl)&&(B.text||B.tbl)&&!header){const it={t:F.text,m:B.text,n};if(F.tbl)it.tt=F.tbl;if(B.tbl)it.mt=B.tbl;out.push(it)}}return out}
 function openBulk(){openModal(`<form id="bulkform">${mh('まとめて追加')}
-  <p class="muted">1行に1枚ずつ。「表,裏」または「表,裏,メモ」の形で入力します。「表:裏」やタブ区切りにも対応。Excelやスプレッドシートの2〜3列（3列目はメモ）をそのまま貼り付けできます。</p>
+  <p class="muted">1行に1枚ずつ。「表 | 裏」または「表 | 裏 | メモ」のように <b>|</b>（縦線。全角の ｜ も可）で区切ります。Excelやスプレッドシートの2〜3列（3列目はメモ）をそのまま貼り付けることもできます。</p>
   <details class="tblhelp"><summary>${ICON.table}テーブルをまとめて追加するには</summary>
-    <p>表や裏の欄を <b>テーブル:</b> で始めると、テーブルになります。マスは <b>//</b>、行は <b>n/</b> で区切ります。</p>
-    <code>be動詞,テーブル:主語//現在//過去 n/ I//am//was n/ you//are//were</code>
+    <p>表や裏の欄に <b>テーブル:</b> と書くと、そのあとがテーブルになります。マスは <b>//</b>、行は <b>n/</b> で区切ります。<b>テーブル:</b> より前の文字は、テーブルの上に出る普通の文字になります。</p>
+    <code>be動詞 | 活用 テーブル:主語//現在//過去 n/ I//am//was n/ you//are//were</code>
     <p>太線の位置は <b>テーブル(横1,縦1):</b> のように指定できます（横＝何行目の下、縦＝何列目の右、0でなし。省略すると横1）。</p></details>
-  <label class="fld"><textarea name="txt" id="bulktxt" rows="9" placeholder="apple,りんご&#10;日本,東京,首都&#10;1192年,鎌倉幕府,いいくにつくろう" autofocus></textarea></label>
+  <label class="fld"><textarea name="txt" id="bulktxt" rows="9" placeholder="apple | りんご&#10;日本 | 東京 | 首都&#10;1192年 | 鎌倉幕府 | いいくにつくろう" autofocus></textarea></label>
   <div class="mf"><button class="btn primary" type="submit" id="bulkbtn">0語を追加</button></div></form>`)}
 function openSetup(){const d=cur();if(!d.words.length){toast('まず単語を追加してください');return}
   const c=k=>d.words.filter(filterFn(k)).length;
@@ -597,7 +590,9 @@ function updStart(){const b=$('#startbtn'),d=cur();if(!b||!d)return;const n=Math
 function startSession(mode,ids){const d=cur()||deckById(sess&&sess.deckId);
   sess={mode,deckId:d.id,items:ids,i:0,dir:mode==='type'?'mt':prefs.dir,res:[],flipped:false,picked:null,optsFor:-1,typed:null,hint:false,lock:false,back:(view.name==='deck'&&view.filter!==undefined)?{...view}:(sess&&sess.back)||{name:'deck',id:d.id}};
   go({name:'study',id:d.id})}
-function csvOf(d){const q=s=>{s=String(s);if(/^[=+@\t\r]/.test(s))s="'"+s;return/[",\n']/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};return d.words.map(w=>[w.t||tableToText(w.tt),w.m||tableToText(w.mt),w.n].map(q).join(',').replace(/,$/,'')).join('\n')}
+function csvOf(d){const q=s=>String(s).replace(/\s*\r?\n\s*/g,' ').replace(/[|｜]/g,'/').trim();
+  const side=(t,tb)=>[q(t),tableToText(tb)].filter(Boolean).join(' ');
+  return d.words.map(w=>{const a=[side(w.t,w.tt),side(w.m,w.mt)];if(w.n)a.push(q(w.n));return a.join(' | ')}).join('\n')}
 
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2300)}
 
@@ -625,11 +620,11 @@ const ACT={
   newFolderMove(el){openFolderForm(null,el.dataset.id)},
   moveHere(el){const d=deckById(el.dataset.id);if(!d)return;d.folder=el.dataset.f;saveDeck(d);render();openAddToFolder(el.dataset.f);toast(`「${d.name}」を移動しました`)},
   sample(){const d={id:'d'+rid(),name:'サンプル：基本英単語',color:COLORS[0],lang:{t:'en-US',m:'ja-JP'},createdAt:Date.now(),updatedAt:0,words:SAMPLE.map(([t,m,n])=>cleanWord({id:'w'+rid(),t,m,n}))};S.decks.push(d);saveDeck(d);go({name:'deck',id:d.id,filter:'all',q:''})},
-  deckMenu(el){menuDeck=(el&&el.dataset.id)||view.id;const d=deckById(menuDeck);if(!d)return;openModal(`${mh(esc(d.name))}<div class="menu"><button data-act="renameDeck">${ICON.edit}名前・カラー・読み上げ言語</button><button data-act="moveDeck">${ICON.move}ファイルに移動</button><button data-act="exportDeck">${ICON.upload}この単語帳をファイルで書き出す</button><button data-act="copyCsv">${ICON.copy}単語をCSVでコピー</button><button data-act="resetStats">${ICON.reset}学習記録をリセット</button><button class="danger" data-act="delDeck">${ICON.trash}単語帳を削除</button></div>`)},
+  deckMenu(el){menuDeck=(el&&el.dataset.id)||view.id;const d=deckById(menuDeck);if(!d)return;openModal(`${mh(esc(d.name))}<div class="menu"><button data-act="renameDeck">${ICON.edit}名前・カラー・読み上げ言語</button><button data-act="moveDeck">${ICON.move}ファイルに移動</button><button data-act="exportDeck">${ICON.upload}この単語帳をファイルで書き出す</button><button data-act="copyCsv">${ICON.copy}カードをテキストでコピー</button><button data-act="resetStats">${ICON.reset}学習記録をリセット</button><button class="danger" data-act="delDeck">${ICON.trash}単語帳を削除</button></div>`)},
   renameDeck(){openDeckForm(menuDeck||view.id)},
   copyCsv(){const d=tgtDeck(),txt=csvOf(d);if(!d.words.length){toast('単語がありません');return}
-    const fallback=()=>{openModal(`${mh('CSV')}<p class="muted">下のテキストを選択してコピーしてください。</p><textarea class="copy" readonly>${esc(txt)}</textarea>`)};
-    try{navigator.clipboard.writeText(txt).then(()=>{closeModal();toast(d.words.length+'語をコピーしました')},fallback)}catch(e){fallback()}},
+    const fallback=()=>{openModal(`${mh('テキスト')}<p class="muted">下のテキストを選択してコピーしてください。「まとめて追加」にそのまま貼り付けられます。</p><textarea class="copy" readonly>${esc(txt)}</textarea>`)};
+    try{navigator.clipboard.writeText(txt).then(()=>{closeModal();toast(d.words.length+'枚をコピーしました')},fallback)}catch(e){fallback()}},
   resetStats(){const d=tgtDeck();confirmDlg('学習記録をリセット','「覚えた」と正解・不正解の回数をすべて消去します。単語は残ります。','リセット',()=>{d.words.forEach(w=>{w.mas=false;w.c=0;w.w=0});saveDeck(d);render();toast('リセットしました')})},
   delDeck(){const d=tgtDeck();confirmDlg('単語帳を削除',`「${esc(d.name)}」と${d.words.length}語を削除します。元に戻せません。`,'削除',()=>{d.words.forEach(w=>{delAsset(w.ti);delAsset(w.mi)});S.decks=S.decks.filter(x=>x.id!==d.id);saveLocal();queue(d.id);afterDeckGone(d);toast('削除しました')})},
   red(){prefs.red=!prefs.red;savePrefs();render()},
