@@ -273,8 +273,8 @@ function renderStudy(){
   if(sess.mode==='card'){
     const tm=sess.dir==='tm',q=tm?w.t:w.m,a=tm?w.m:w.t,qi=tm?w.ti:w.mi,ai=tm?w.mi:w.ti,qt=tm?w.tt:w.mt,at=tm?w.mt:w.tt,last=sess.i===n-1,enter=sess.enter||'';sess.enter='';
     body=`<div class="stage"><div class="card3d ${enter}" id="card" style="--c:${d.color}"><div class="flip ${sess.flipped?'on':''}" id="flip">
-      <div class="face"><span class="hint">${tm?'表':'裏'}</span>${sideHTML(q,qi,qt)}<span class="tap">タップで裏返す ・ 左右にスライドで移動</span></div>
-      <div class="face back"><span class="hint">${tm?'裏':'表'}</span>${sideHTML(a,ai,at)}${q?`<div class="sub">${esc(q)}</div>`:''}${w.n?`<div class="note">${esc(w.n)}</div>`:''}</div>
+      <div class="face"><span class="hint">${tm?'表':'裏'}</span><div class="fbody">${sideHTML(q,qi,qt)}</div><span class="tap">タップで裏返す ・ 左右にスライドで移動</span></div>
+      <div class="face back"><span class="hint">${tm?'裏':'表'}</span><div class="fbody">${sideHTML(a,ai,at)}${q?`<div class="sub">${esc(q)}</div>`:''}${w.n?`<div class="note">${esc(w.n)}</div>`:''}</div></div>
       </div></div>
       <div class="tools"><button class="icon" data-act="speak" aria-label="読み上げ">${ICON.sound}</button><button class="icon" data-act="swapDir" aria-label="表と裏を入れ替え" title="表と裏を入れ替え">${ICON.swap}</button><button class="star ${w.star?'on':''}" data-act="starCur" aria-label="チェック">${ICON.star}</button><button class="mast ${w.mas?'on':''}" data-act="toggleMas" aria-pressed="${w.mas}">${ICON.check}<span>${w.mas?'覚えた':'覚えていない'}</span></button></div></div>
       <div class="nav2"><button class="btn ghost" data-act="cardPrev" ${sess.i===0?'disabled':''}>${ICON.back}前へ</button><button class="btn ${last?'primary':'ghost'}" data-act="cardNext">${last?'完了':'次へ'}${last?ICON.check:ICON.fwd}</button></div>
@@ -308,7 +308,7 @@ function record(ok){
 }
 function nextQ(){clearTimeout(sess.timer);sess.i++;sess.flipped=false;sess.picked=null;sess.typed=null;sess.hint=false;sess.lock=false;
   if(sess.i>=sess.items.length){go({name:'result',id:sess.deckId});return}render()}
-function flip(){const f=$('#flip');if(!f)return;sess.flipped=!sess.flipped;f.classList.toggle('on',sess.flipped)}
+function flip(){const f=$('#flip');if(!f)return;sess.flipped=!sess.flipped;f.classList.toggle('on',sess.flipped);cardOv()}
 function cardGo(delta,swipe){if(!sess||sess.lock)return;const ni=sess.i+delta,c=$('#card');
   if(ni<0||ni>=sess.items.length){if(ni>=sess.items.length&&!swipe){go(sess.back);return}
     if(c){c.style.transition='transform .2s';c.style.transform='';c.classList.remove('bump','in-r','in-l');void c.offsetWidth;c.classList.add('bump')}toast(ni<0?'最初のカードです':'最後のカードです');return}
@@ -319,8 +319,15 @@ function pick(i){if(sess.picked!=null||!sess.opts[i])return;const w=curWord();se
 const norm=s=>String(s).normalize('NFKC').toLowerCase().replace(/[.,!?;:'"’‘“”]/g,'').replace(/\s+/g,' ').trim();
 function answerType(val){if(sess.typed)return;const w=curWord();const alts=w.t.split(/[\/／;；]/).map(norm).filter(Boolean);alts.push(norm(w.t));
   const ok=val!=null&&alts.includes(norm(val));sess.typed={val:val||'',ok};record(ok);playSfx(ok);render();if(ok)setTimeout(()=>speak(w.t,true,sideLang('t')),prefs.sfx?350:0)}
+function fadeEdges(b){b.classList.toggle('mt',b.scrollTop>2);b.classList.toggle('mb',b.scrollTop+b.clientHeight<b.scrollHeight-2)}
+function cardOv(){const c=$('#card');if(!c)return;const v=c.querySelector(sess&&sess.flipped?'.face.back .fbody':'.face:not(.back) .fbody');c.classList.toggle('ov',!!(v&&v.classList.contains('ov')))}
+function fitFaces(){const c=$('#card');if(!c)return;c.querySelectorAll('.fbody').forEach(b=>{b.classList.remove('ov');const ov=b.scrollHeight>b.clientHeight+2;b.classList.toggle('ov',ov);if(!ov)b.scrollTop=0;fadeEdges(b)});cardOv()}
+addEventListener('resize',()=>{if($('#card'))fitFaces()});
 function attachSwipe(){
   const c=$('#card');if(!c)return;let sx=0,sy=0,dx=0,down=false,moved=false;
+  c.querySelectorAll('.fbody').forEach(b=>b.addEventListener('scroll',()=>fadeEdges(b),{passive:true}));
+  c.querySelectorAll('img').forEach(i=>{if(!i.complete)i.addEventListener('load',fitFaces,{once:true})});
+  fitFaces();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if($('#card')===c)fitFaces()});
   c.addEventListener('pointerdown',e=>{if(sess.lock)return;down=true;moved=false;sx=e.clientX;sy=e.clientY;dx=0;c.style.transition='none';try{c.setPointerCapture(e.pointerId)}catch(_){}});
   c.addEventListener('pointermove',e=>{if(!down)return;dx=e.clientX-sx;if(Math.abs(dx)>6||Math.abs(e.clientY-sy)>6)moved=true;if(!moved)return;
     c.style.transform=`translateX(${dx}px)`});

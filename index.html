@@ -189,16 +189,16 @@ html.lock,html.lock body{height:100%;overflow:hidden;overscroll-behavior:none}
 #app.mode-card .card3d{flex:1;height:auto;min-height:150px;max-height:540px;touch-action:none}
 #app.mode-card .tools{flex:none}
 #app.mode-card .nav2{flex:none}
-@media (max-height:500px){#app.mode-card .face{padding:26px 18px 14px}#app.mode-card .face .note{display:none}#app.mode-card .face .sub{margin-top:4px;font-size:13px}#app.mode-card .hint{top:8px}#app.mode-card .tap{display:none}#app.mode-card .cimg{max-height:45%;margin-bottom:6px}#app.mode-card .big.withimg{font-size:20px}#app.mode-card .big.withimg.m,#app.mode-card .big.withimg.s,#app.mode-card .big.withimg.xs{font-size:16px}}
+@media (max-height:500px){#app.mode-card .fbody{padding:26px 18px 14px}#app.mode-card .fbody.ov{top:26px;padding-top:2px;padding-bottom:18px}#app.mode-card .face .sub{margin-top:4px;font-size:13px}#app.mode-card .hint{top:8px}#app.mode-card .tap{display:none}#app.mode-card .cimg{max-height:45%;margin-bottom:6px}#app.mode-card .big.withimg{font-size:20px}#app.mode-card .big.withimg.m,#app.mode-card .big.withimg.s,#app.mode-card .big.withimg.xs{font-size:16px}}
 @media (max-height:600px){#app.mode-card .nav2 .btn{height:48px}#app.mode-card .stage{gap:8px;padding-bottom:8px}#app.mode-card .tools .icon,#app.mode-card .tools .star{width:38px;height:38px}#app.mode-card .tools .mast{height:38px}#app.mode-card .kbd{display:none}}
 .flip{position:relative;width:100%;height:100%;transition:transform .5s cubic-bezier(.2,.75,.25,1);transform-style:preserve-3d}
 .flip.on{transform:rotateY(180deg)}
-.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;text-align:center;overflow:hidden;
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;text-align:center;overflow:hidden;
   background:radial-gradient(120% 80% at 50% 0%,rgba(59,130,246,.22),transparent 60%),linear-gradient(180deg,#0F1E45,#0A1430);
   box-shadow:inset 0 1px 0 rgba(180,215,255,.12),0 0 0 1px rgba(120,170,255,.22),0 20px 50px rgba(0,4,20,.6),0 0 60px rgba(37,99,235,.18)}
 .face.back{transform:rotateY(180deg);background:radial-gradient(120% 80% at 50% 0%,color-mix(in srgb,var(--c,#3B82F6) 30%,transparent),transparent 60%),linear-gradient(180deg,#10214D,#0A1430)}
 .face.back::before{content:"";position:absolute;top:0;left:20%;right:20%;height:3px;border-radius:0 0 4px 4px;background:var(--c,#3B82F6);box-shadow:0 0 16px var(--c,#3B82F6)}
-.hint{position:absolute;top:18px;left:0;right:0;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.1em}
+.hint{position:absolute;top:18px;left:0;right:0;z-index:1;pointer-events:none;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.1em}
 .tap{position:absolute;bottom:18px;font-size:12px;color:var(--muted)}
 .big{font-size:46px;font-weight:700;line-height:1.25;word-break:break-word;max-width:100%;text-shadow:0 0 24px rgba(96,165,250,.35)}
 .big.m{font-size:32px} .big.s{font-size:24px} .big.xs{font-size:19px}
@@ -353,6 +353,16 @@ html.al-right .face .tbl td,html.al-right .qbox .tbl td{text-align:right}
 .big.withtbl{font-size:24px}.big.withtbl.m{font-size:20px}.big.withtbl.s,.big.withtbl.xs{font-size:16px}
 .cimg.withtbl{max-height:30%}
 .qbox .ctable{margin-top:12px}
+/* card face content: centred when it fits, scrolls (with edge fades) only when it overflows */
+.fbody{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:28px 24px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(120,170,255,.35) transparent;border-radius:inherit}
+.face .fbody>*{flex-shrink:0}
+.face .fbody>.ctable{overflow:visible}
+.face .fbody>:first-child{margin-top:auto}
+.face .fbody>:last-child{margin-bottom:auto}
+.fbody.ov{top:40px;padding-top:4px;padding-bottom:30px;border-radius:0 0 28px 28px;touch-action:pan-y;--mt:0px;--mb:0px;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 var(--mt),#000 calc(100% - var(--mb)),transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 var(--mt),#000 calc(100% - var(--mb)),transparent 100%)}
+.fbody.ov.mt{--mt:28px}.fbody.ov.mb{--mb:40px}
+#app.mode-card .card3d.ov{touch-action:pan-y}
+.face .tap{transition:opacity .2s}.card3d.ov .face .tap{opacity:0}
 .tblslot{margin-top:8px}
 button.addph{width:100%;text-align:left}
 .tbed{border:1.5px solid var(--line);border-radius:14px;padding:10px;background:rgba(255,255,255,.03)}
