@@ -69,9 +69,10 @@ const src=r=>r?(r.p?(photoURL[r.p]||''):r.d||''):'';
 const SAFE_ID=/^[A-Za-z0-9_-]{1,64}$/;
 const safeId=(v,pre)=>{v=typeof v==='string'?v:'';return SAFE_ID.test(v)?v:pre+rid()};
 const TMAX_R=20,TMAX_C=8;
+const TCELL=500;
 function cleanTable(t){if(!t||typeof t!=='object')return null;const ci=(v,lo,hi,d)=>{v=parseInt(v,10);return isNaN(v)?d:Math.max(lo,Math.min(hi,v))};
   const r=ci(t.r,1,TMAX_R,1),c=ci(t.c,1,TMAX_C,1),src=Array.isArray(t.cells)?t.cells:[];
-  const cells=[];for(let i=0;i<r;i++){const row=Array.isArray(src[i])?src[i]:[];const out=[];for(let j=0;j<c;j++)out.push(String(row[j]==null?'':row[j]).slice(0,200));cells.push(out)}
+  const cells=[];for(let i=0;i<r;i++){const row=Array.isArray(src[i])?src[i]:[];const out=[];for(let j=0;j<c;j++)out.push(String(row[j]==null?'':row[j]).slice(0,TCELL));cells.push(out)}
   const o=t.th&&typeof t.th==='object'?t.th:{};let hh,vv;
   if('h' in o||'v' in o){hh=ci(o.h,0,99,0);vv=ci(o.v,0,99,0)}
   else if(o.k==='h'){hh=ci(o.i,0,99,1);vv=0}else if(o.k==='v'){hh=0;vv=ci(o.i,0,99,1)}else if(o.k==='n'){hh=0;vv=0}else{hh=1;vv=0}
@@ -545,25 +546,28 @@ function thickOpts(n,unit){const o=[['0','なし']];for(let i=1;i<n;i++)o.push([
 function tblSlot(side){const t=wf&&wf[side].table;
   if(!t)return`<button type="button" class="addph" data-act="addTable" data-side="${side}">${ICON.table}<span>テーブルを追加</span><small>行と列を指定してマスに入力</small></button>`;
   let g='';
-  for(let i=0;i<t.r;i++){g+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.h===i+1?'tb ':'')+(t.th.v===j+1?'tr':'');g+=`<td class="${cl}"><input class="tbcell" data-side="${side}" data-r="${i}" data-c="${j}" value="${esc(t.cells[i][j])}" maxlength="200" autocomplete="off" aria-label="${i+1}行${j+1}列"></td>`}g+='</tr>'}
+  for(let i=0;i<t.r;i++){g+='<tr>';for(let j=0;j<t.c;j++){const cl=(t.th.h===i+1?'tb ':'')+(t.th.v===j+1?'tr':'');g+=`<td class="${cl}"><textarea class="tbcell" rows="1" data-side="${side}" data-r="${i}" data-c="${j}" maxlength="${TCELL}" autocomplete="off" aria-label="${i+1}行${j+1}列">${esc(t.cells[i][j])}</textarea></td>`}g+='</tr>'}
   return`<div class="tbed"><div class="tbbar">行<span class="stp"><button type="button" data-act="tbStep" data-side="${side}" data-k="r" data-d="-1" ${t.r<=1?'disabled':''} aria-label="行を減らす">−</button><b>${t.r}</b><button type="button" data-act="tbStep" data-side="${side}" data-k="r" data-d="1" ${t.r>=TMAX_R?'disabled':''} aria-label="行を増やす">＋</button></span>
     列<span class="stp"><button type="button" data-act="tbStep" data-side="${side}" data-k="c" data-d="-1" ${t.c<=1?'disabled':''} aria-label="列を減らす">−</button><b>${t.c}</b><button type="button" data-act="tbStep" data-side="${side}" data-k="c" data-d="1" ${t.c>=TMAX_C?'disabled':''} aria-label="列を増やす">＋</button></span>
     <button type="button" class="rm" data-act="rmTable" data-side="${side}">${ICON.trash}テーブルを削除</button></div>
     <label class="tbthick">横の太線<select data-tbthick="${side}" data-dir="h" ${t.r<2?'disabled':''}>${thickOpts(t.r,'行').map(([v,l])=>`<option value="${v}" ${+v===t.th.h?'selected':''}>${l}</option>`).join('')}</select></label>
     <label class="tbthick">縦の太線<select data-tbthick="${side}" data-dir="v" ${t.c<2?'disabled':''}>${thickOpts(t.c,'列').map(([v,l])=>`<option value="${v}" ${+v===t.th.v?'selected':''}>${l}</option>`).join('')}</select></label>
-    <div class="tbwrap"><table class="tbl tbl-edit">${g}</table></div></div>`}
-function refreshTb(side){const el=$('#tb-'+side);if(el&&wf)el.innerHTML=tblSlot(side)}
+    <div class="tbwrap"><table class="tbl tbl-edit" style="--cols:${t.c}">${g}</table></div></div>`}
+function growCell(el){el.style.height='auto';el.style.height=el.scrollHeight+'px'}
+function growCells(root){(root||document).querySelectorAll('textarea.tbcell').forEach(growCell)}
+addEventListener('resize',()=>growCells());
+function refreshTb(side){const el=$('#tb-'+side);if(el&&wf){el.innerHTML=tblSlot(side);growCells(el)}}
 function resizeTbl(t,r,c){const cells=[];for(let i=0;i<r;i++){const row=[];for(let j=0;j<c;j++)row.push(t.cells[i]&&t.cells[i][j]!=null?t.cells[i][j]:'');cells.push(row)}return cleanTable({r,c,cells,th:t.th})}
-document.addEventListener('input',e=>{const x=e.target;if(x.classList&&x.classList.contains('tbcell')&&wf){const t=wf[x.dataset.side]&&wf[x.dataset.side].table;if(t)t.cells[+x.dataset.r][+x.dataset.c]=x.value.slice(0,200)}});
+document.addEventListener('input',e=>{const x=e.target;if(x.classList&&x.classList.contains('tbcell')&&wf){const t=wf[x.dataset.side]&&wf[x.dataset.side].table;if(t)t.cells[+x.dataset.r][+x.dataset.c]=x.value.slice(0,TCELL);growCell(x)}});
 document.addEventListener('change',e=>{const x=e.target;if(x.dataset&&x.dataset.tbthick&&wf){const s=x.dataset.tbthick,t=wf[s]&&wf[s].table;if(!t)return;const th={...t.th};th[x.dataset.dir==='v'?'v':'h']=+x.value||0;wf[s].table=cleanTable({...t,th});refreshTb(s)}});
-document.addEventListener('keydown',e=>{const x=e.target;if(e.key==='Enter'&&x.classList&&x.classList.contains('tbcell')){e.preventDefault();const t=wf&&wf[x.dataset.side]&&wf[x.dataset.side].table;if(!t)return;let r=+x.dataset.r,c=+x.dataset.c+1;if(c>=t.c){c=0;r++}if(r>=t.r)return;const n=document.querySelector(`.tbcell[data-side="${x.dataset.side}"][data-r="${r}"][data-c="${c}"]`);if(n)n.focus()}});
+document.addEventListener('keydown',e=>{const x=e.target;if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229&&x.classList&&x.classList.contains('tbcell')){e.preventDefault();const t=wf&&wf[x.dataset.side]&&wf[x.dataset.side].table;if(!t)return;let r=+x.dataset.r,c=+x.dataset.c+1;if(c>=t.c){c=0;r++}if(r>=t.r)return;const n=document.querySelector(`.tbcell[data-side="${x.dataset.side}"][data-r="${r}"][data-c="${c}"]`);if(n)n.focus()}});
 function phSlot(side){const s=wf[side],u=s.pending?s.pending.preview:(!s.removed&&s.ref?src(s.ref):'');
   const inp=`<input type="file" accept="image/*" data-side="${side}" hidden>`;
   if(u)return`<div class="ph"><img src="${esc(u)}" alt=""><button type="button" class="phx" data-act="rmPhoto" data-side="${side}" aria-label="写真を削除">${ICON.x}</button><label class="phchg">${ICON.camera}変更${inp}</label></div>`;
   return`<label class="addph">${ICON.camera}<span>写真を追加</span><small>選択・貼り付け・ドロップ</small>${inp}</label>`}
 function refreshPh(side){const el=$('#ph-'+side);if(el&&wf)el.innerHTML=phSlot(side)}
 function grow(el){el.style.height='auto';const max=innerHeight*.45;el.style.height=Math.min(el.scrollHeight+2,max)+'px';el.classList.toggle('scroll',el.scrollHeight+2>max)}
-function growAll(){document.querySelectorAll('textarea.grow').forEach(grow)}
+function growAll(){document.querySelectorAll('textarea.grow').forEach(grow);growCells()}
 document.addEventListener('input',e=>{if(e.target.classList&&e.target.classList.contains('grow'))grow(e.target)});
 // Ctrl/⌘ + Enter saves the word form (Enter alone adds a new line)
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&e.target.closest&&e.target.closest('#wordform')){e.preventDefault();const b=document.querySelector('#wordform .btn.primary[type=submit]');if(b)b.click()}});
